@@ -3,7 +3,7 @@
 """
 setup.py file for dbtoolspy
 """
-import imp
+import importlib
 import sys
 # Use setuptools to include build_sphinx, upload/sphinx commands
 try:
@@ -13,7 +13,13 @@ except ImportError:
 
 long_description = open('README.rst').read()
 
-_version = imp.load_source('_version','dbtoolspy/_version.py')
+spec = importlib.util.spec_from_file_location("_version", "dbtoolspy/_version.py")
+if spec is None:
+    raise ImportError("Failed to find module spec for _version.py!")
+
+_version = importlib.util.module_from_spec(spec)
+sys.modules["_version"] = _version
+spec.loader.exec_module(_version)
 
 setup(name='dbtoolspy',
       version=_version.__version__,
@@ -28,7 +34,6 @@ setup(name='dbtoolspy',
                    'Environment :: Console',
                    'Intended Audience :: Developers',
                    'License :: OSI Approved :: BSD License',
-                   'Programming Language :: Python :: 2',
                    'Programming Language :: Python :: 3',
                    ],
       )
