@@ -1,9 +1,9 @@
 from __future__ import print_function
 import sys
 
-from .tokenizer import tokenizer
+from .tokenizer import Tokenizer
 
-def parse_filename(src):
+def parse_filename(src: str) -> str:
     filename = None
 
     token = next(src)
@@ -17,7 +17,7 @@ def parse_filename(src):
     return filename
 
 
-def parse_pattern_macros(src):
+def parse_pattern_macros(src: str) -> list[str]:
     macros = []
 
     token = next(src)
@@ -33,7 +33,7 @@ def parse_pattern_macros(src):
     return macros
 
 
-def parse_pattern_values(src):
+def parse_pattern_values(src: str) -> list[str]:
     values = []
 
     token = next(src)
@@ -49,7 +49,7 @@ def parse_pattern_values(src):
     return values
 
 
-def parse_macro_value(src):
+def parse_macro_value(src: str)-> tuple[list[str], list[str]]:
     macros = []
     values = []
     
@@ -80,14 +80,14 @@ FILE = 2
 PATTERN = 3
 SUBS = 4
 
-def parse_template(source):
+def parse_template(source: str) -> list[tuple[str, dict[str, str]]]:
     """
     :param buffer source: EPICS substitutes
-    :return: list of (filename, macros, values)
+    :return: list of (filename, macros)
     """
     files = []
 
-    src = iter(tokenizer(source))
+    src = iter(Tokenizer(source))
 
     global_macros = {}
     saved_state = state = NEUTRAL
@@ -143,11 +143,8 @@ def parse_template(source):
     return files
 
 
-def load_template_file(filename, encoding='utf8'):
-    if sys.hexversion < 0x03000000:
-        return parse_template(open(filename))
-    else:
-        return parse_template(open(filename, encoding=encoding))
+def load_template_file(filename: str, encoding: str='utf8'):
+    return parse_template(open(filename, encoding=encoding))
 
 
 if __name__ == '__main__':
@@ -182,4 +179,3 @@ if __name__ == '__main__':
                     macros,
                     includes,
                     args.encoding))
-    print(db)

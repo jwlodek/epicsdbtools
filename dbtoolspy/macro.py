@@ -2,18 +2,15 @@ from __future__ import print_function
 
 import re
 import sys
-if sys.hexversion < 0x03000000:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
 from .tokenizer import tokenizer
 
 Macros = re.compile('\$\(([^)=]+)(=([^)]*))?\)')
 
-def macExpand(source, macros):
+def expand_macros(source: str, macros: dict[str, str]) -> tuple[str, list[str]]:
     """
-    >>> macExpand('$(A) $(B) $(C=3)', {'A': '1'})
+    >>> expand_macros('$(A) $(B) $(C=3)', {'A': '1'})
     ('1 $(B) 3', ['B'])
     """
     unmatched = set()
@@ -40,9 +37,9 @@ def macExpand(source, macros):
     return expanded, list(unmatched)
 
 
-def macSplit(macro_string):
+def split_macros(macro_string: str) -> dict[str, str]:
     """
-    >>> print(macSplit('a=1,b="2",c,d=\\'hello\\''))
+    >>> print(split_macros('a=1,b="2",c,d=\\'hello\\''))
     {'a': '1', 'b': '2', 'd': 'hello'}
     """
     src = tokenizer(StringIO(macro_string))

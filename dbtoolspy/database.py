@@ -3,28 +3,22 @@ from __future__ import print_function
 
 import collections
 import os
-import sys
-if sys.hexversion < 0x03000000:
-    from StringIO import StringIO
-    open_file = lambda filename, encoding: open(filename)
-else:
-    from io import StringIO
-    open_file = open
+from io import StringIO
 import warnings
 
-from .tokenizer import tokenizer
-from .macro import macExpand, macSplit
+from .tokenizer import Tokenizer
+from .macro import expand_macros, split_macros
 
 
 class DatabaseException(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: str):
         self.msg = msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.msg
 
     
-class Record(object):
+class Record:
     def __init__(self):
         self.name = None
         self.rtyp = None
@@ -32,10 +26,10 @@ class Record(object):
         self.fields = collections.OrderedDict()
         self.aliases = []
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.name != None and self.rtyp != None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         repr = 'record ({0}, "{1}")\n'.format(self.rtyp, self.name)
         repr += '{\n'
         for field, value in self.fields.items():
@@ -47,13 +41,13 @@ class Record(object):
         repr += '}'
         return repr
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Valid record has defined name and type.
         """
         return self.name and self.rtyp
 
-    def merge(self, another):
+    def merge(self, another) -> None:
         """
         Merge fields, infos, aliases from another record instance.
         """
@@ -62,17 +56,17 @@ class Record(object):
         self.aliases.extend(another.aliases)
 
 
-class Database(collections.OrderedDict):
+class Database(collections.OrderedDict[str, Record]):
     def __init__(self):
         super(Database, self).__init__()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         msg = []
         for record in self.values():
             msg.append(repr(record))
         return '\n'.join(msg)
 
-    def add_record(self, record):
+    def add_record(self, record: Record) -> None:
         if not record.is_valid():
             return
 
@@ -87,12 +81,33 @@ class Database(collections.OrderedDict):
         else:
             self[record.name] = record
 
-    def update(self, database):
+    def get_records_by_type(self, rtyp: str) -> list[Record]:
+        records = []
+        for record in self.values():
+            if record.rtyp == rtyp:
+                records.append(record)
+        return records
+
+    def get_records_by_info(self, info: str, value: str) -> list[Record]:
+        records = []
+        for record in self.values():
+            if info in record.infos and record.infos.get(info) == value:
+                records.append(record)
+        return records
+
+    def filter_records_by_info(self, info: str, value: str) -> list[Record]:
+        records = []
+        for record in self.values():
+            if info not in record.infos or record.infos.get(info) != value:
+                records.append(record)
+        return records
+
+    def update(self, database: collections.OrderedDict[str, Record]) -> None:
         for record in database.values():
             self.add_record(record)
  
 
-def parse_pair(src):
+def parse_pair(src: str) -> tuple[str, str]:
     """
     parse '(field, "value")' definition to tuple (field, value)
     """
@@ -114,7 +129,7 @@ def parse_pair(src):
     return field, value
 
 
-def parse_record(src):
+def parse_record(src: str) -> Record:
     """
     :param iter src: token generator
     """
@@ -141,7 +156,7 @@ def parse_record(src):
     return record
 
 
-def find_database_file(filename, includes):
+def find_database_file(filename: str, includes: list[str]) -> str:
     if not os.path.isabs(filename):
         for include in includes:
             path = os.path.join(include, filename)
@@ -151,7 +166,7 @@ def find_database_file(filename, includes):
     return filename
 
 
-def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
+def load_database_file(filename: str, macros: dict[str, str]=None, includes: list[str]=[], encoding: str='utf8') -> Database:
     """
     :param str filename: EPICS database filename
     :return: list of record dict
@@ -166,9 +181,9 @@ def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
     lineno = 1
     lines = []
     failed = False
-    for line in open_file(filename, encoding=encoding):
+    for line in open(filename, encoding=encoding):
         if macros is not None:
-            expanded, unmatched = macExpand(line, macros)
+            expanded, unmatched = expand_macros(line, macros)
             if unmatched:
                 failed = True
                 print('{0}:{1}: macro "{2}" is undefined ({3})'.format(
@@ -186,7 +201,7 @@ def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
         return database
 
     # parse record instances
-    src = iter(tokenizer(StringIO(''.join(lines)), filename))
+    src = iter(Tokenizer(StringIO(''.join(lines)), filename))
     while True:
         try:
             token = next(src)
@@ -197,7 +212,7 @@ def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
             database.add_record(parse_record(src))
         elif token == 'alias':
             record_name, alias_name = parse_pair(src)
-            records[alias_name] = records[record_name]
+            database[alias_name] = database[record_name]
         elif token == 'include':
             inclusion = next(src)
             extended_includes = set(includes)
@@ -231,7 +246,7 @@ if __name__ == '__main__':
 
     macros = None
     if args.macro:
-        macros = macSplit(args.macro)
+        macros = split_macros(args.macro)
 
     for file in args.database_files:
         if os.path.exists(file):

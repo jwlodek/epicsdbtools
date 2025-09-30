@@ -2,12 +2,9 @@ from __future__ import print_function
 
 import re
 import sys
-if sys.hexversion < 0x03000000:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
-__all__ = ['tokenizer']
+__all__ = ['Tokenizer']
 
 # Partial excerpt from Python/Lib/tokenize.py
 def group(*choices): return '(' + '|'.join(choices) + ')'
@@ -33,7 +30,7 @@ class TokenException(Exception):
         return repr
 
 
-class tokenizer(object):
+class Tokenizer:
     """
     >>> for t in tokenizer(StringIO('bareword "$(NAME=VALUE)" name=value "" {name} # comments')):
     ...     print(t, end=' ')
