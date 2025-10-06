@@ -65,6 +65,7 @@ class Record(object):
 class Database(collections.OrderedDict):
     def __init__(self):
         super(Database, self).__init__()
+        self._included_templates = set()
 
     def __repr__(self):
         msg = []
@@ -90,6 +91,12 @@ class Database(collections.OrderedDict):
     def update(self, database):
         for record in database.values():
             self.add_record(record)
+
+    def add_included_template(self, template):
+        self._included_templates.add(template)
+
+    def get_included_templates(self):
+        return self._included_templates
  
 
 def parse_pair(src):
@@ -151,7 +158,7 @@ def find_database_file(filename, includes):
     return filename
 
 
-def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
+def load_database_file(filename, macros=None, includes=[], encoding='utf8', load_includes=True):
     """
     :param str filename: EPICS database filename
     :return: list of record dict
@@ -197,14 +204,17 @@ def load_database_file(filename, macros=None, includes=[], encoding='utf8'):
             database.add_record(parse_record(src))
         elif token == 'alias':
             record_name, alias_name = parse_pair(src)
-            records[alias_name] = records[record_name]
+            database[alias_name] = database[record_name]
         elif token == 'include':
             inclusion = next(src)
-            extended_includes = set(includes)
-            extended_includes.add(os.path.dirname(filename))
-            for record in load_database_file(inclusion, macros, extended_includes).values():
-                database.add_record(record)
+            database.add_included_template(inclusion)
 
+            # recursively load included file
+            if load_includes:
+                extended_includes = set(includes)
+                extended_includes.add(os.path.dirname(filename))
+                for record in load_database_file(inclusion, macros, extended_includes).values():
+                    database.add_record(record)
     return database
 
 
