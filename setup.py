@@ -31,7 +31,7 @@ setup(name='dbtoolspy',
       packages=["dbtoolspy"],
       entry_points={
           'console_scripts': [
-              'generate-param-defs = dbtoolspy.paramdefs:generate_param_defs_cli',
+              'dbtoolspy-gen-paramdefs = dbtoolspy.paramdefs:generate_param_defs_cli',
           ],
       },
       license="BSD",
