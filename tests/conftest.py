@@ -1,4 +1,5 @@
 import pytest
+
 from epics_dbtools.database import Database, Record
 
 ASYN_DTYPES_TO_RTYPES_MAP = {
@@ -19,8 +20,12 @@ def sample_asyn_db():
             record.rtyp = rtype
             record.fields["DTYP"] = dtype
             if rtype.endswith("in") or rtype.endswith("i"):
-                record.fields["INP"] = f"@asyn($(PORT),0,1)TST_{rtype.upper()}_{dtype.upper()}"
+                record.fields["INP"] = (
+                    f"@asyn($(PORT),0,1)TST_{rtype.upper()}_{dtype.upper()}"
+                )
             else:
-                record.fields["OUT"] = f"@asyn($(PORT),0,1)TST_{rtype.upper()}_{dtype.upper()}"
+                record.fields["OUT"] = (
+                    f"@asyn($(PORT),0,1)TST_{rtype.upper()}_{dtype.upper()}"
+                )
             db.add_record(record)
     return db

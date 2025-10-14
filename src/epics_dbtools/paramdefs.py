@@ -2,14 +2,12 @@
 
 import argparse
 import os
-
 from dataclasses import dataclass
-
-from logging import basicConfig, getLogger
-
 from enum import Enum
-from .database import Database, load_database_file
+from logging import basicConfig, getLogger
 from pathlib import Path
+
+from .database import Database, load_database_file
 
 basicConfig(level="INFO")
 logger = getLogger("dbtoolspy.paramdefs")
@@ -28,6 +26,7 @@ class ParamDef:
     name: str
     type: ParamType
 
+
 def get_internal_param_type_from_dtyp(dtyp: ParamType) -> str:
     if dtyp in [ParamType.STRINGIN, ParamType.STRINGOUT]:
         return "asynParamOctet"
@@ -45,19 +44,25 @@ def get_params_from_db(database: Database, base_name: str) -> list[ParamDef]:
                     [p.lower().capitalize() for p in param_string.split("_")[1:]]
                 )
                 param_name = f"{base_name}_{param_suffix}"
-                if not param_name in params:
-                    logger.info(f"Found param: {param_string} of type {record.fields['DTYP']}")
+                if param_name not in params:
+                    logger.info(
+                        f"Found param: {param_string} of type {record.fields['DTYP']}"
+                    )
                     params[param_name] = ParamDef(
                         record_str=param_string,
                         name=param_name,
                         type=ParamType(record.fields["DTYP"]),
                     )
                 else:
-                    logger.info(f"Param {param_name} already defined, skipping duplicate.")
+                    logger.info(
+                        f"Param {param_name} already defined, skipping duplicate."
+                    )
     return list(params.values())
 
 
-def generate_header_file_for_db(params: list[ParamDef], output_dir: Path, base_name: str):
+def generate_header_file_for_db(
+    params: list[ParamDef], output_dir: Path, base_name: str
+):
     header_file = output_dir / f"{base_name}ParamDefs.h"
 
     with open(header_file, "w") as hf:
@@ -80,7 +85,7 @@ def generate_header_file_for_db(params: list[ParamDef], output_dir: Path, base_n
         hf.write(f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n")
         hf.write(f"#define {base_name.upper()}_LAST_PARAM {list(params)[-1].name}\n\n")
         hf.write(
-            f"#define NUM_{base_name.upper()}_PARAMS ((int)(&{base_name.upper()}_LAST_PARAM - &{base_name.upper()}_FIRST_PARAM + 1))\n\n"
+            f"#define NUM_{base_name.upper()}_PARAMS ((int)(&{base_name.upper()}_LAST_PARAM - &{base_name.upper()}_FIRST_PARAM + 1))\n\n"  # noqa E501
         )
         hf.write("#endif\n")
 
@@ -96,7 +101,7 @@ def generate_cpp_file_for_db(params: set[ParamDef], output_dir: Path, base_name:
         for param in params:
             logger.info("Creating param: %s", param.name)
             cf.write(
-                f"    createParam({param.name}String, {get_internal_param_type_from_dtyp(param.type)}, &{param.name});\n"
+                f"    createParam({param.name}String, {get_internal_param_type_from_dtyp(param.type)}, &{param.name});\n"  # noqa E501
             )
         cf.write("}\n")
 
@@ -117,13 +122,20 @@ def generate_param_defs_cli():
     args = parser.parse_args()
     template_file = args.template_file
     output_dir = Path(args.output_dir)
-    base_name = args.filename if args.filename else os.path.splitext(os.path.basename(template_file))[0]
-    database = load_database_file(template_file, macros=args.macros, load_includes=False)
+    base_name = (
+        args.filename
+        if args.filename
+        else os.path.splitext(os.path.basename(template_file))[0]
+    )
+    database = load_database_file(
+        template_file, macros=args.macros, load_includes=False
+    )
     params = get_params_from_db(database, base_name)
     for param in params:
         print("Found param: %s of type %s", param.record_str, param.type.value)
     generate_header_file_for_db(params, output_dir, base_name)
     generate_cpp_file_for_db(params, output_dir, base_name)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     generate_param_defs_cli()

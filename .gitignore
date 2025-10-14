@@ -13,3 +13,4 @@ dist/
 
 # Virtual environments
 venv/
+_version.py

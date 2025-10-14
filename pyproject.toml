@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "epicsdb2bob"
+name = "epics_dbtools"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
@@ -102,7 +102,7 @@ lint.select = [
     "SLF", # self - https://docs.astral.sh/ruff/settings/#lintflake8-self
 ]
 exclude = [
-    "src/epicsdb2bob/_version.py",
+    "src/epics_dbtools/_version.py",
 ]
 
 [tool.ruff.lint.per-file-ignores]

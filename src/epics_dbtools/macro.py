@@ -1,7 +1,6 @@
-from __future__ import print_function
-
 import re
 import sys
+
 if sys.hexversion < 0x03000000:
     from StringIO import StringIO
 else:
@@ -9,7 +8,8 @@ else:
 
 from .tokenizer import tokenizer
 
-Macros = re.compile('\$\(([^)=]+)(=([^)]*))?\)')
+Macros = re.compile(r"\$\(([^)=]+)(=([^)]*))?\)")
+
 
 def macExpand(source, macros):
     """
@@ -21,11 +21,11 @@ def macExpand(source, macros):
     def replace(matchobj):
         name = matchobj.group(1)
         default = matchobj.group(3)
-        value =  macros.get(name)
+        value = macros.get(name)
         if value is None:
             if default is None:
                 unmatched.add(name)
-                return '$(%s)' % name 
+                return f"$({name})"
             else:
                 return default
         else:
@@ -46,23 +46,24 @@ def macSplit(macro_string):
     {'a': '1', 'b': '2', 'd': 'hello'}
     """
     src = tokenizer(StringIO(macro_string))
-    
+
     macros = {}
-    name = value = None
+    name = None
     for token in src:
-        if token == '=':
-            pass 
-        elif token == ',':
-            name = value = None
+        if token == "=":
+            pass
+        elif token == ",":
+            name = None
         else:
             if name:
                 macros[name] = token
             else:
                 name = token
-       
+
     return macros
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
