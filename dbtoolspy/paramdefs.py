@@ -109,6 +109,7 @@ def generate_param_defs_cli():
     parser.add_argument(
         "output_dir", help="Directory to save the generated header and source files."
     )
+    parser.add_argument("-f", "--filename", help="Base name for generated files.")
     parser.add_argument(
         "-m", "--macros", nargs="*", help="Optional macros to apply to the template."
     )
@@ -116,9 +117,8 @@ def generate_param_defs_cli():
     args = parser.parse_args()
     template_file = args.template_file
     output_dir = Path(args.output_dir)
-    base_name = os.path.splitext(os.path.basename(template_file))[0]
-
-    database = load_database_file(template_file, macros=args.macros)
+    base_name = args.filename if args.filename else os.path.splitext(os.path.basename(template_file))[0]
+    database = load_database_file(template_file, macros=args.macros, load_includes=False)
     params = get_params_from_db(database, base_name)
     for param in params:
         print("Found param: %s of type %s", param.record_str, param.type.value)
