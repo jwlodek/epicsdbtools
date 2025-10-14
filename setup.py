@@ -29,6 +29,11 @@ setup(name='dbtoolspy',
       author_email="xiaoqiang.wang@psi.ch",
       url="https://github.com/paulscherrerinstitue/dbtoolspy",
       packages=["dbtoolspy"],
+      entry_points={
+          'console_scripts': [
+              'dbtoolspy-gen-paramdefs = dbtoolspy.paramdefs:generate_param_defs_cli',
+          ],
+      },
       license="BSD",
       classifiers=['Development Status :: 4 - Beta',
                    'Environment :: Console',
