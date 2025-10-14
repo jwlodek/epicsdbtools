@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from logging import basicConfig, getLogger
 
 from enum import Enum
-from .database import Database, load_database_file
+from ..database import Database, load_database_file
 from pathlib import Path
 
 basicConfig(level="INFO")
@@ -124,3 +124,6 @@ def generate_param_defs_cli():
         print("Found param: %s of type %s", param.record_str, param.type.value)
     generate_header_file_for_db(params, output_dir, base_name)
     generate_cpp_file_for_db(params, output_dir, base_name)
+
+if __name__ == '__main__':
+    generate_param_defs_cli()

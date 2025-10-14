@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pytest
 
-from dbtoolspy.paramdefs import get_internal_param_type_from_dtyp, ParamType, ParamDef, get_params_from_db, generate_header_file_for_db, generate_cpp_file_for_db
+from epics_dbtools.paramdefs import get_internal_param_type_from_dtyp, ParamType, ParamDef, get_params_from_db, generate_header_file_for_db, generate_cpp_file_for_db
 
 
 def test_get_internal_param_type_from_dtyp():

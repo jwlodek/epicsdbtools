@@ -1,8 +1,0 @@
-include README.rst
-include LICENSE
-include MANIFEST.in
-include dbtoolspy/*.py
-include tools/*.py
-include python-dbtoolspy.spec
-include setup.py
-include setup.cfg
