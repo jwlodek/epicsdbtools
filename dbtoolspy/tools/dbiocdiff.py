@@ -10,7 +10,7 @@ import argparse
 import os
 import re
 
-from dbtoolspy import load_database_file, load_template_file, Database
+from .. import load_database_file, load_template_file, Database
 from CaChannel import ca, CaChannel
 
 class TablePrinter(object):
@@ -32,7 +32,7 @@ class TablePrinter(object):
         print(' '.join(['-'*w for w in self.widths]))
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rtyps',
             help='record types separated by ",". (default: all)')
@@ -120,3 +120,6 @@ if __name__ == '__main__':
 
         if not all_consistent:
             printer.print_separator()
+
+if __name__ == '__main__':
+    main()
