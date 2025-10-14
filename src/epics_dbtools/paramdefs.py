@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from logging import basicConfig, getLogger
 
 from enum import Enum
-from ..database import Database, load_database_file
+from .database import Database, load_database_file
 from pathlib import Path
 
 basicConfig(level="INFO")

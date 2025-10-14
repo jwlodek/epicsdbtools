@@ -10,7 +10,7 @@ import argparse
 import os
 import re
 
-from .. import load_database_file, load_template_file, Database
+from . import load_database_file, load_template_file, Database
 from CaChannel import ca, CaChannel
 
 class TablePrinter(object):
