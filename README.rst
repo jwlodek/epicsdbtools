@@ -51,6 +51,8 @@ load_database_file takes the following argument:
    encoding
      (Optional) File encoding. (default utf-8)
 
+   load_includes
+     (Optional) Follow *include* directive. (default True)
 
 Record has the following attibutes:
 
@@ -74,6 +76,9 @@ Database derives from OrderedDict. The key is the record name and the value the 
 
   add_record
     Add a new *Record* instance.
+
+  get_included_templates
+    Get template files referenced by all *include* directives.
 
   update
     Add records from another *Database* instance. If there exists a record with the same *name* and the same *rtyp*, the new *fields*, *infos* and *aliases* 
