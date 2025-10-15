@@ -1,24 +1,20 @@
 import re
-import sys
+from io import StringIO
+from re import Pattern
 
-if sys.hexversion < 0x03000000:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from .tokenizer import Tokenizer
 
-from .tokenizer import tokenizer
-
-Macros = re.compile(r"\$\(([^)=]+)(=([^)]*))?\)")
+MACRO_REGEX: Pattern = re.compile(r"\$\(([^)=]+)(=([^)]*))?\)")
 
 
-def macExpand(source, macros):
+def macro_expand(source: str, macros: dict[str, str]) -> tuple[str, list[str]]:
     """
-    >>> macExpand('$(A) $(B) $(C=3)', {'A': '1'})
+    >>> macro_expand('$(A) $(B) $(C=3)', {'A': '1'})
     ('1 $(B) 3', ['B'])
     """
     unmatched = set()
 
-    def replace(matchobj):
+    def replace(matchobj: re.Match) -> str:
         name = matchobj.group(1)
         default = matchobj.group(3)
         value = macros.get(name)
@@ -32,7 +28,7 @@ def macExpand(source, macros):
             return value
 
     while True:
-        expanded = Macros.sub(replace, source)
+        expanded = MACRO_REGEX.sub(replace, source)
         if expanded == source:
             break
         source = expanded
@@ -40,12 +36,12 @@ def macExpand(source, macros):
     return expanded, list(unmatched)
 
 
-def macSplit(macro_string):
+def macro_split(macro_string: str) -> dict[str, str]:
     """
-    >>> print(macSplit('a=1,b="2",c,d=\\'hello\\''))
+    >>> print(macro_split('a=1,b="2",c,d=\\'hello\\''))
     {'a': '1', 'b': '2', 'd': 'hello'}
     """
-    src = tokenizer(StringIO(macro_string))
+    src = Tokenizer(StringIO(macro_string))
 
     macros = {}
     name = None

@@ -1,29 +1,28 @@
 #!/usr/bin/env python
 
-from collections import OrderedDict
 import os
-import sys
+from collections import OrderedDict
+from collections.abc import Iterator
+from enum import Enum
+from io import StringIO
+from pathlib import Path
 
-if sys.hexversion < 0x03000000:
-    from StringIO import StringIO
+from .log import logger
+from .macro import macro_expand, macro_split
+from .tokenizer import Tokenizer
 
-    def open_file(filename, encoding):
-        return open(filename)
-else:
-    from io import StringIO
 
-    open_file = open
-import warnings
-
-from .macro import macExpand, macSplit
-from .tokenizer import tokenizer
+class LoadIncludesStrategy(str, Enum):
+    LOAD_INTO_SELF = "load_into_self"
+    LOAD_INTO_NEW = "load_into_new"
+    IGNORE = "ignore"
 
 
 class DatabaseException(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: str):
         self.msg = msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.msg
 
 
@@ -35,10 +34,10 @@ class Record:
         self.fields: OrderedDict[str, str] = OrderedDict()
         self.aliases: list[tuple[str, str | None]] = []
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.name is not None and self.rtyp is not None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         repr = f'record ({self.rtyp}, "{self.name}")\n'
         repr += "{\n"
         for field, value in self.fields.items():
@@ -50,13 +49,13 @@ class Record:
         repr += "}"
         return repr
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Valid record has defined name and type.
         """
-        return self.name and self.rtyp
+        return self.name is not None and self.rtyp is not None
 
-    def merge(self, another):
+    def merge(self, another: "Record") -> None:
         """
         Merge fields, infos, aliases from another record instance.
         """
@@ -68,15 +67,15 @@ class Record:
 class Database(OrderedDict):
     def __init__(self):
         super().__init__()
-        self._included_templates = set()
+        self._included_templates: dict[str, Database | None] = {}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         msg = []
         for record in self.values():
             msg.append(repr(record))
         return "\n".join(msg)
 
-    def add_record(self, record):
+    def add_record(self, record: "Record") -> None:
         if not record.is_valid():
             return
 
@@ -88,23 +87,30 @@ class Database(OrderedDict):
                     f" conflicting record type '{record.rtyp}'"
                 )
             else:
-                warnings.warn(f"Merging record '{record.name}'", stacklevel=2)
+                logger.warning(f"Merging into existing record: '{record.name}'")
                 record_existed.merge(record)
         else:
+            logger.info(f"Adding record: '{record.name}'")
             self[record.name] = record
 
-    def update(self, database):
+    def merge(self, database: "Database") -> None:
+        """
+        Merge records from another Database instance
+        """
         for record in database.values():
             self.add_record(record)
 
-    def add_included_template(self, template):
-        self._included_templates.add(template)
+    def add_included_template(self, template: str, database: "Database | None") -> None:
+        self._included_templates[template] = database
 
-    def get_included_templates(self):
+    def get_included_templates(self) -> dict[str, "Database | None"]:
         return self._included_templates
 
+    def get_included_template_filepaths(self) -> list[str]:
+        return list(self._included_templates.keys())
 
-def parse_pair(src):
+
+def parse_pair(src: Iterator[str]) -> tuple[str | None, str | None]:
     """
     parse '(field, "value")' definition to tuple (field, value)
     """
@@ -126,7 +132,7 @@ def parse_pair(src):
     return field, value
 
 
-def parse_record(src):
+def parse_record(src: Iterator[str]) -> Record:
     """
     :param iter src: token generator
     """
@@ -138,33 +144,39 @@ def parse_record(src):
     while True:
         if token == "}":
             break
-
-        elif token == "field":
-            field, value = parse_pair(src)
-            record.fields[field] = value
-        elif token == "info":
-            field, value = parse_pair(src)
-            record.infos[field] = value
-        elif token == "alias":
-            record.aliases.append(parse_pair(src))
+        elif token in ("field", "info", "alias"):
+            key, value = parse_pair(src)
+            if key and value:
+                logger.debug(f"Setting {token} '{key}' for record '{record.name}'")
+                getattr(record, f"{token}s")[key] = value
+            else:
+                logger.warning(f"Invalid {token} definition for record '{record.name}'")
 
         token = next(src)
 
+    logger.info(f"Parsed record: '{record.name}'")
     return record
 
 
-def find_database_file(filename, includes):
-    if not os.path.isabs(filename):
+def find_database_file(filename: Path, includes: set[Path] | None = None) -> Path:
+    if not filename.is_absolute() and includes is not None:
         for include in includes:
-            path = os.path.join(include, filename)
-            if os.path.exists(path):
+            path = include / filename
+            if path.exists():
                 filename = path
                 break
+    else:
+        if not filename.exists():
+            raise DatabaseException(f"Database file '{filename}' not found")
     return filename
 
 
 def load_database_file(
-    filename, macros=None, includes=None, encoding="utf8", load_includes=True
+    filename: Path,
+    macros: dict[str, str] | None = None,
+    includes: set[Path] | None = None,
+    load_includes_strategy: LoadIncludesStrategy = LoadIncludesStrategy.LOAD_INTO_SELF,
+    allow_unmatched_macros: bool = True,
 ):
     """
     :param str filename: EPICS database filename
@@ -173,7 +185,7 @@ def load_database_file(
     """
     # search filename through include directories
     if includes is None:
-        includes = []
+        includes = set()
     filename = find_database_file(filename, includes)
 
     database = Database()
@@ -182,30 +194,28 @@ def load_database_file(
     lineno = 1
     lines = []
     failed = False
-    for line in open_file(filename, encoding=encoding):
-        if macros is not None:
-            expanded, unmatched = macExpand(line, macros)
-            if unmatched:
-                failed = True
-                print(
-                    '{}:{}: macro "{}" is undefined ({})'.format(
-                        os.path.basename(filename),
-                        lineno,
-                        '" "'.join(unmatched),
-                        line.strip(),
-                    )
-                )
+    with open(filename) as fp:
+        for line in fp.readlines():
+            if macros is not None:
+                expanded, unmatched = macro_expand(line, macros)
+                if unmatched:
+                    msg = f"{filename}:{lineno}: macro(s) {unmatched} undefined"
+                    if not allow_unmatched_macros:
+                        failed = True
+                        logger.error(msg)
+                    else:
+                        logger.debug(msg)
+                else:
+                    lines.append(expanded)
             else:
-                lines.append(expanded)
-        else:
-            lines.append(line)
-        lineno += 1
+                lines.append(line)
+            lineno += 1
 
     if failed:
         return database
 
     # parse record instances
-    src = iter(tokenizer(StringIO("".join(lines)), filename))
+    src = iter(Tokenizer(StringIO("".join(lines)), str(filename)))
     while True:
         try:
             token = next(src)
@@ -219,16 +229,27 @@ def load_database_file(
             database[alias_name] = database[record_name]
         elif token == "include":
             inclusion = next(src)
-            database.add_included_template(inclusion)
+            # Add placeholder entry for included file even if we
+            database.add_included_template(inclusion, None)
 
             # recursively load included file
-            if load_includes:
+            if load_includes_strategy != LoadIncludesStrategy.IGNORE:
                 extended_includes = set(includes)
-                extended_includes.add(os.path.dirname(filename))
-                for record in load_database_file(
-                    inclusion, macros, extended_includes
-                ).values():
-                    database.add_record(record)
+                extended_includes.add(filename.parent)
+                included_db = load_database_file(
+                    Path(inclusion),
+                    macros,
+                    extended_includes,
+                    load_includes_strategy,
+                    allow_unmatched_macros,
+                )
+                if load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_SELF:
+                    database.merge(included_db)
+                if load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_SELF:
+                    database.merge(included_db)
+                elif load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_NEW:
+                    database.add_included_template(inclusion, included_db)
+
     return database
 
 
@@ -250,7 +271,7 @@ if __name__ == "__main__":
 
     macros = None
     if args.macro:
-        macros = macSplit(args.macro)
+        macros = macro_split(args.macro)
 
     for file in args.database_files:
         if os.path.exists(file):

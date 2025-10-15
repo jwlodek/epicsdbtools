@@ -1,16 +1,12 @@
 import re
-import sys
+from collections.abc import Iterator
+from io import StringIO
 
-if sys.hexversion < 0x03000000:
-    pass
-else:
-    pass
-
-__all__ = ["tokenizer"]
+__all__ = ["Tokenizer"]
 
 
 # Partial excerpt from Python/Lib/tokenize.py
-def group(*choices):
+def group(*choices) -> str:
     return "(" + "|".join(choices) + ")"
 
 
@@ -35,17 +31,17 @@ class TokenException(Exception):
         return repr
 
 
-class tokenizer:
+class Tokenizer:
     """
     >>> io = StringIO('bareword "$(NAME=VALUE)" name=value "" {name} # comments')
-    >>> for t in tokenizer(io):
+    >>> for t in Tokenizer(io):
     ...     print(t, end=' ')
     bareword $(NAME=VALUE) name = value  { name }
-    >>> for t in tokenizer(StringIO('# this is a comment line')):
+    >>> for t in Tokenizer(StringIO('# this is a comment line')):
     ...     print(t, end=' ')
     """
 
-    def __init__(self, instream, filename=None):
+    def __init__(self, instream: StringIO, filename: str | None = None):
         self.instream = instream
         if filename is None:
             if hasattr(self.instream, "name"):
@@ -56,10 +52,10 @@ class tokenizer:
             self.filename = filename
         self.lineno = 1
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self.get_token()
 
-    def get_token(self):
+    def get_token(self) -> Iterator[str]:
         self.lineno = 1
         for line in self.instream:
             if not line:
@@ -73,7 +69,25 @@ class tokenizer:
             pos, max = 0, len(line)
             while pos < max:
                 m = re.compile(Token).match(line, pos)
-                if m.start() == m.end():
+                if m is not None:
+                    if m.start() == m.end():
+                        raise TokenException(
+                            f'Illegal char "{line[pos]}"',
+                            self.filename,
+                            self.lineno,
+                            pos,
+                            line,
+                        )
+                    pos = m.end()
+                    token = m.group(0)
+                    if not m.group("whitespace") and not m.group("comment"):
+                        if token[0] == token[-1] == '"':
+                            yield token[1:-1]
+                        elif token[0] == token[-1] == "'":
+                            yield token[1:-1]
+                        else:
+                            yield token
+                else:
                     raise TokenException(
                         f'Illegal char "{line[pos]}"',
                         self.filename,
@@ -81,15 +95,6 @@ class tokenizer:
                         pos,
                         line,
                     )
-                pos = m.end()
-                token = m.group(0)
-                if not m.group("whitespace") and not m.group("comment"):
-                    if token[0] == token[-1] == '"':
-                        yield token[1:-1]
-                    elif token[0] == token[-1] == "'":
-                        yield token[1:-1]
-                    else:
-                        yield token
 
 
 if __name__ == "__main__":
