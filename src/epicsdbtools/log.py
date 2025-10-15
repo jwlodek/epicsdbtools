@@ -5,7 +5,6 @@ logging.basicConfig()
 
 logger: logging.Logger = logging.getLogger("epicsdbtools")
 
-
 class ColorFormatter(logging.Formatter):
     """ANSI color formatter for warnings and errors."""
 
@@ -26,20 +25,28 @@ class ColorFormatter(logging.Formatter):
         if self.use_color and record.levelno in self.COLOR_MAP:
             # Temporarily modify the levelname with color codes
             original_levelname = record.levelname
+            # Pad to 8 characters (length of "CRITICAL") for consistent alignment
+            padded_levelname = original_levelname.ljust(8)
             record.levelname = (
-                f"{self.COLOR_MAP[record.levelno]}{original_levelname}{self.RESET}"
+                f"{self.COLOR_MAP[record.levelno]}{padded_levelname}{self.RESET}"
             )
             base = super().format(record)
             # Restore the original levelname
             record.levelname = original_levelname
             return base
-        return super().format(record)
+        # For non-colored output, still pad for consistency
+        original_levelname = record.levelname
+        record.levelname = original_levelname.ljust(8)
+        base = super().format(record)
+        record.levelname = original_levelname
+        return base
 
 
 handler = logging.StreamHandler()
 use_color = sys.stderr.isatty()
-fmt = "%(asctime)s | %(levelname)-8s | %(message)s"
+fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 handler.setFormatter(ColorFormatter(fmt, use_color=use_color))
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 logger.propagate = False
+
