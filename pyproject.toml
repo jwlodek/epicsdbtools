@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "epics_dbtools"
+name = "epicsdbtools"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
@@ -32,8 +32,8 @@ dev = [
 ]
 
 [project.scripts]
-dbtools-gen-paramdefs = "epics_dbtools.paramdefs:generate_param_defs_cli"
-dbtools-dbiocdiff = "epics_dbtools.dbiocdiff:main"
+dbtools-gen-paramdefs = "epicsdbtools.paramdefs:generate_param_defs_cli"
+dbtools-dbiocdiff = "epicsdbtools.dbiocdiff:main"
 
 [project.urls]
 GitHub = "https://github.com/jwlodek/epics-dbtools"
@@ -43,7 +43,7 @@ email = "jwlodek@bnl.gov"
 name = "Jakub Wlodek"
 
 [tool.setuptools_scm]
-version_file = "src/epics_dbtools/_version.py"
+version_file = "src/epicsdbtools/_version.py"
 
 [tool.pyright]
 typeCheckingMode = "standard"
@@ -61,7 +61,7 @@ filterwarnings = "error"
 testpaths = "docs src tests"
 
 [tool.coverage.run]
-data_file = "/tmp/epics_dbtools.coverage"
+data_file = "/tmp/epicsdbtools.coverage"
 
 [tool.coverage.paths]
 # Tests are run from installed location, map back to the src directory
@@ -85,7 +85,7 @@ allowlist_externals =
 commands =
     pre-commit: pre-commit run --all-files --show-diff-on-failure {posargs}
     type-checking: pyright src tests {posargs}
-    tests: pytest --cov=epics_dbtools --cov-report term --cov-report xml:cov.xml {posargs}
+    tests: pytest --cov=epicsdbtools --cov-report term --cov-report xml:cov.xml {posargs}
 """
 
 [tool.ruff]
@@ -102,7 +102,7 @@ lint.select = [
     "SLF", # self - https://docs.astral.sh/ruff/settings/#lintflake8-self
 ]
 exclude = [
-    "src/epics_dbtools/_version.py",
+    "src/epicsdbtools/_version.py",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -112,4 +112,4 @@ exclude = [
 "tests/**/*" = ["SLF001"]
 
 [tool.importlinter]
-root_package = "epics_dbtools"
+root_package = "epicsdbtools"

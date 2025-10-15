@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import collections
+from collections import OrderedDict
 import os
 import sys
 
@@ -29,11 +29,11 @@ class DatabaseException(Exception):
 
 class Record:
     def __init__(self):
-        self.name = None
-        self.rtyp = None
-        self.infos = collections.OrderedDict()
-        self.fields = collections.OrderedDict()
-        self.aliases = []
+        self.name: str | None = None
+        self.rtyp: str | None = None
+        self.infos: OrderedDict[str, str] = OrderedDict()
+        self.fields: OrderedDict[str, str] = OrderedDict()
+        self.aliases: list[tuple[str, str | None]] = []
 
     def __bool__(self):
         return self.name is not None and self.rtyp is not None
@@ -65,7 +65,7 @@ class Record:
         self.aliases.extend(another.aliases)
 
 
-class Database(collections.OrderedDict):
+class Database(OrderedDict):
     def __init__(self):
         super().__init__()
         self._included_templates = set()
