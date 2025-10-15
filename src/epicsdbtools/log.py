@@ -3,7 +3,7 @@ import sys
 
 logging.basicConfig()
 
-logger: logging.Logger = logging.getLogger("epics_dbtools")
+logger: logging.Logger = logging.getLogger("epicsdbtools")
 
 
 class ColorFormatter(logging.Formatter):

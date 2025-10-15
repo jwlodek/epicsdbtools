@@ -154,7 +154,7 @@ def parse_record(src: Iterator[str]) -> Record:
 
         token = next(src)
 
-    logger.info(f"Parsed record: '{record.name}'")
+    logger.debug(f"Parsed record: '{record.name}'")
     return record
 
 
@@ -249,6 +249,8 @@ def load_database_file(
                     database.merge(included_db)
                 elif load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_NEW:
                     database.add_included_template(inclusion, included_db)
+
+    logger.info(f"Loaded {len(database)} unique records from '{filename}'")
 
     return database
 

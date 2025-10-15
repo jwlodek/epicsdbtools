@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from .database import Database, load_database_file, LoadIncludesStrategy
+from .database import Database, LoadIncludesStrategy, load_database_file
 from .log import logger
 
 
@@ -42,7 +42,7 @@ def get_params_from_db(database: Database, base_name: str) -> list[ParamDef]:
                 )
                 param_name = f"{base_name}_{param_suffix}"
                 if param_name not in params:
-                    logger.info(
+                    logger.debug(
                         f"Found param: {param_string} of type {record.fields['DTYP']}"
                     )
                     params[param_name] = ParamDef(
@@ -51,7 +51,7 @@ def get_params_from_db(database: Database, base_name: str) -> list[ParamDef]:
                         type=ParamType(record.fields["DTYP"]),
                     )
                 else:
-                    logger.info(
+                    logger.debug(
                         f"Param {param_name} already defined, skipping duplicate."
                     )
     return list(params.values())
@@ -70,13 +70,13 @@ def generate_header_file_for_db(
 
         hf.write("// String definitions for parameters\n")
         for param in params:
-            logger.info("Defining string for param: %s", param.name)
+            logger.debug("Defining string for param: %s", param.name)
             hf.write(f'#define {param.name}String "{param.record_str}"\n')
         hf.write("\n")
 
         hf.write("// Parameter index definitions\n")
         for param in params:
-            logger.info("Defining index for param: %s", param.name)
+            logger.debug("Defining index for param: %s", param.name)
             hf.write(f"int {param.name};\n")
 
         hf.write(f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n")
@@ -96,7 +96,7 @@ def generate_cpp_file_for_db(params: list[ParamDef], output_path: Path, base_nam
         cf.write(f'#include "{base_name}.h"\n\n')
         cf.write(f"void {base_name}::createAllParams() {{\n")
         for param in params:
-            logger.info(f"Creating param: {param.name}")
+            logger.debug(f"Creating param: {param.name}")
             cf.write(
                 f"    createParam({param.name}String, {get_internal_param_type_from_dtyp(param.type)}, &{param.name});\n"  # noqa E501
             )
@@ -142,7 +142,9 @@ def generate_param_defs_cli():
         )
         params = get_params_from_db(database, base_name)
         for param in params:
-            print("Found param: %s of type %s", param.record_str, param.type.value)
+            logger.info(
+                f"Param: {param.name}, Type: {param.type}, Record: {param.record_str}"
+            )
         generate_header_file_for_db(params, output_path, base_name)
         generate_cpp_file_for_db(params, output_path, base_name)
 
