@@ -26,7 +26,9 @@ class ColorFormatter(logging.Formatter):
         if self.use_color and record.levelno in self.COLOR_MAP:
             # Temporarily modify the levelname with color codes
             original_levelname = record.levelname
-            record.levelname = f"{self.COLOR_MAP[record.levelno]}{original_levelname}{self.RESET}"
+            record.levelname = (
+                f"{self.COLOR_MAP[record.levelno]}{original_levelname}{self.RESET}"
+            )
             base = super().format(record)
             # Restore the original levelname
             record.levelname = original_levelname
