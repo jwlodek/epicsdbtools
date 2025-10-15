@@ -61,6 +61,7 @@ def generate_header_file_for_db(
     params: list[ParamDef], output_path: Path, base_name: str
 ):
     header_file = output_path / f"{base_name}ParamDefs.h"
+    logger.info(f"Generating header file {header_file} for {len(params)} params")
 
     with open(header_file, "w") as hf:
         hf.write(f"#ifndef {base_name.upper()}_PARAM_DEFS_H\n")
@@ -89,6 +90,7 @@ def generate_header_file_for_db(
 
 def generate_cpp_file_for_db(params: list[ParamDef], output_path: Path, base_name: str):
     cpp_file = output_path / f"{base_name}ParamDefs.cpp"
+    logger.info(f"Generating cpp file {cpp_file} for {len(params)} params")
 
     with open(cpp_file, "w") as cf:
         cf.write("// This file is auto-generated. Do not edit directly.\n")

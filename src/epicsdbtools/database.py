@@ -90,7 +90,7 @@ class Database(OrderedDict):
                 logger.warning(f"Merging into existing record: '{record.name}'")
                 record_existed.merge(record)
         else:
-            logger.info(f"Adding record: '{record.name}'")
+            logger.debug(f"Adding record: '{record.name}'")
             self[record.name] = record
 
     def merge(self, database: "Database") -> None:
