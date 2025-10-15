@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from .database import Database, load_database_file
+from .database import Database, load_database_file, LoadIncludesStrategy
 from .log import logger
 
 
@@ -138,7 +138,7 @@ def generate_param_defs_cli():
             else os.path.splitext(os.path.basename(template_file))[0]
         )
         database = load_database_file(
-            template_file, macros=args.macros, load_includes=False
+            template_file, load_includes_strategy=LoadIncludesStrategy.IGNORE
         )
         params = get_params_from_db(database, base_name)
         for param in params:
