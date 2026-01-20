@@ -47,6 +47,6 @@ int Test_WaveformAsynoctetwrite;
 #define TEST_FIRST_PARAM Test_BoAsynint32
 #define TEST_LAST_PARAM Test_WaveformAsynoctetwrite
 
-#define NUM_TEST_PARAMS ((int)(&TEST_LAST_PARAM - &TEST_FIRST_PARAM + 1))
+#define NUM_TEST_PARAMS 18
 
 #endif

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from epics_dbtools.paramdefs import (
+from epicsdbtools.paramdefs import (
     ParamType,
     generate_cpp_file_for_db,
     generate_header_file_for_db,
@@ -65,3 +65,15 @@ def test_generate_header_and_cpp_files(tmp_path, sample_asyn_db):
     with open(cpp_file) as cf:
         with open(expected_cpp) as ec:
             assert cf.read() == ec.read()
+
+
+def test_generate_header_file_no_params(tmp_path):
+    generate_header_file_for_db([], tmp_path, "EmptyTest")
+    header_file = tmp_path / "EmptyTestParamDefs.h"
+    assert header_file.exists()
+
+    with open(header_file) as hf:
+        content = hf.read()
+        assert "#define NUM_EMPTYTEST_PARAMS 0" in content
+        assert "#define EMPTYTEST_FIRST_PARAM" not in content
+        assert "#define EMPTYTEST_LAST_PARAM" not in content

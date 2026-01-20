@@ -80,10 +80,11 @@ def generate_header_file_for_db(
             logger.debug("Defining index for param: %s", param.name)
             hf.write(f"int {param.name};\n")
 
-        hf.write(f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n")
-        hf.write(f"#define {base_name.upper()}_LAST_PARAM {list(params)[-1].name}\n\n")
+        if len(params) > 0:
+            hf.write(f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n")
+            hf.write(f"#define {base_name.upper()}_LAST_PARAM {list(params)[-1].name}\n\n")
         hf.write(
-            f"#define NUM_{base_name.upper()}_PARAMS ((int)(&{base_name.upper()}_LAST_PARAM - &{base_name.upper()}_FIRST_PARAM + 1))\n\n"  # noqa E501
+            f"#define NUM_{base_name.upper()}_PARAMS {len(params)}\n\n"
         )
         hf.write("#endif\n")
 
