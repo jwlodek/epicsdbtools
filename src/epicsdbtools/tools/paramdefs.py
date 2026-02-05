@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 
+"""
+Generate asyn parameter definitions from EPICS DB template.
+"""
+
 import argparse
 import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from .database import Database, LoadIncludesStrategy, load_database_file
-from .log import logger
+from ..database import Database, LoadIncludesStrategy, load_database_file
+from ..log import logger
 
 
 class ParamType(Enum):
@@ -15,6 +19,7 @@ class ParamType(Enum):
     DOUBLE = "asynFloat64"
     STRINGIN = "asynOctetRead"
     STRINGOUT = "asynOctetWrite"
+    UINTDIGITAL = "asynUInt32Digital"
 
 
 @dataclass(frozen=True)
@@ -31,12 +36,18 @@ def get_internal_param_type_from_dtyp(dtyp: ParamType) -> str:
         return "asynParam" + dtyp.value.split("asyn")[-1]
 
 
-def get_params_from_db(database: Database, base_name: str) -> list[ParamDef]:
+def get_params_from_db(database: Database, base_name: str, prefix: str | None = None) -> list[ParamDef]:
     params = {}
     for record in database.values():
         for field_name in ["OUT", "INP"]:
             if field_name in record.fields:
                 param_string = record.fields[field_name].rsplit(")", 1)[-1]
+                if prefix is not None and not param_string.startswith(prefix):
+                    logger.info(
+                        f"Skipping param {param_string} as it does not match prefix {prefix}"
+                    )
+                    continue
+
                 param_suffix = "".join(
                     [p.lower().capitalize() for p in param_string.split("_")[1:]]
                 )
@@ -105,10 +116,7 @@ def generate_cpp_file_for_db(params: list[ParamDef], output_path: Path, base_nam
         cf.write("}\n")
 
 
-def generate_param_defs_cli():
-    parser = argparse.ArgumentParser(
-        description="Generate asyn parameter definitions from EPICS DB template."
-    )
+def make_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "input_path",
         help="Path to the EPICS DB template file, or directory containing it.",
@@ -120,35 +128,45 @@ def generate_param_defs_cli():
     parser.add_argument(
         "-m", "--macros", nargs="*", help="Optional macros to apply to the template."
     )
+    parser.add_argument("-p", "--prefix", help="Optional prefix that can be used to filter out parameters.")
+
+
+def generate_param_defs_cli():
+    parser = argparse.ArgumentParser(
+        description="Generate asyn parameter definitions from EPICS DB template."
+    )
+    make_parser(parser)
 
     args = parser.parse_args()
 
+    in_path = Path(args.input_path)
+    out_path = Path(args.output_path)
+
     template_files = (
-        [args.input_path]
-        if os.path.isfile(args.input_path)
+        [in_path]
+        if in_path.is_file()
         else [
-            os.path.join(args.input_path, f)
-            for f in os.listdir(args.input_path)
-            if f.endswith(".template")
+            in_path /  f
+            for f in in_path.iterdir()
+            if f.is_file() and f.suffix == ".template"
         ]
     )
-    output_path = Path(args.output_path)
     for template_file in template_files:
         base_name = (
             args.filename
             if args.filename
-            else os.path.splitext(os.path.basename(template_file))[0]
+            else template_file.stem
         )
         database = load_database_file(
-            Path(template_file), load_includes_strategy=LoadIncludesStrategy.IGNORE
+            template_file, load_includes_strategy=LoadIncludesStrategy.IGNORE
         )
-        params = get_params_from_db(database, base_name)
+        params = get_params_from_db(database, base_name, prefix=args.prefix)
         for param in params:
             logger.info(
                 f"Param: {param.name}, Type: {param.type}, Record: {param.record_str}"
             )
-        generate_header_file_for_db(params, output_path, base_name)
-        generate_cpp_file_for_db(params, output_path, base_name)
+        generate_header_file_for_db(params, out_path, base_name)
+        generate_cpp_file_for_db(params, out_path, base_name)
 
 
 if __name__ == "__main__":

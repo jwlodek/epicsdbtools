@@ -32,8 +32,7 @@ dev = [
 ]
 
 [project.scripts]
-dbtools-gen-paramdefs = "epicsdbtools.paramdefs:generate_param_defs_cli"
-dbtools-iocdiff = "epicsdbtools.dbiocdiff:main"
+epicsdbtools = "epicsdbtools.cli:main"
 
 [project.urls]
 GitHub = "https://github.com/jwlodek/epics-dbtools"

@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 """
-This script loads records from a substitution file and reports fields
-that have inconsistencies values with those in the running IOC.
-
+Compare EPICS database configured values against actual IOC values.
 """
 
 import argparse
 import os
+from pathlib import Path
 import re
 
-from CaChannel import CaChannel, ca
 
-from . import Database, load_database_file, load_template_file
+try:
+    from CaChannel import CaChannel, ca
+except Exception:
+    pass
+
+from epicsdbtools import Database, load_database_file, load_template_file
 
 
 class TablePrinter:
@@ -37,9 +40,6 @@ class TablePrinter:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rtyps", help='record types separated by ",". (default: all)')
-    parser.add_argument(
-        "--encoding", default="utf8", help="files encoding (default: utf8)"
-    )
     parser.add_argument("subs", help="substitute file")
     args = parser.parse_args()
 
@@ -51,9 +51,9 @@ def main():
     subs = os.path.expanduser(args.subs)
 
     db = Database()
-    for filename, macros in load_template_file(subs, args.encoding):
+    for filename, macros in load_template_file(subs):
         db.update(
-            load_database_file(filename, macros, [os.path.dirname(subs)], args.encoding)
+            load_database_file(Path(filename), macros, set([Path(subs).parent]))
         )
 
     # print output as table
@@ -123,7 +123,7 @@ def main():
                 # convert to float for all other numeric types
                 config_value = float(config_value)
 
-            if isinstance(config_value, float):
+            if isinstance(config_value, float) and (isinstance(actual_value, float) or isinstance(actual_value, int)):
                 if abs(actual_value - config_value) > 1e-9:
                     all_consistent = False
                     printer.print_line(chan.name(), actual_value, record.fields[field])

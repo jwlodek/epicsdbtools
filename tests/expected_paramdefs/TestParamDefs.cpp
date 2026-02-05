@@ -22,4 +22,8 @@ void Test::createAllParams() {
     createParam(Test_StringoutAsynoctetwriteString, asynParamOctet, &Test_StringoutAsynoctetwrite);
     createParam(Test_StringinAsynoctetwriteString, asynParamOctet, &Test_StringinAsynoctetwrite);
     createParam(Test_WaveformAsynoctetwriteString, asynParamOctet, &Test_WaveformAsynoctetwrite);
+    createParam(Test_MbbiAsynuint32digitalString, asynParamUInt32Digital, &Test_MbbiAsynuint32digital);
+    createParam(Test_MbboAsynuint32digitalString, asynParamUInt32Digital, &Test_MbboAsynuint32digital);
+    createParam(Test_BiAsynuint32digitalString, asynParamUInt32Digital, &Test_BiAsynuint32digital);
+    createParam(Test_BoAsynuint32digitalString, asynParamUInt32Digital, &Test_BoAsynuint32digital);
 }

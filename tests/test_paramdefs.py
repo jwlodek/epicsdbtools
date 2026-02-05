@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from epics_dbtools.paramdefs import (
+from epicsdbtools.tools.paramdefs import (
     ParamType,
     generate_cpp_file_for_db,
     generate_header_file_for_db,
@@ -15,6 +15,7 @@ def test_get_internal_param_type_from_dtyp():
     assert get_internal_param_type_from_dtyp(ParamType.DOUBLE) == "asynParamFloat64"
     assert get_internal_param_type_from_dtyp(ParamType.STRINGIN) == "asynParamOctet"
     assert get_internal_param_type_from_dtyp(ParamType.STRINGOUT) == "asynParamOctet"
+    assert get_internal_param_type_from_dtyp(ParamType.UINTDIGITAL) == "asynParamUInt32Digital"
 
 
 def test_get_params_from_db(sample_asyn_db):
@@ -38,6 +39,10 @@ def test_get_params_from_db(sample_asyn_db):
         "Test_StringoutAsynoctetwrite",
         "Test_StringinAsynoctetwrite",
         "Test_WaveformAsynoctetwrite",
+        "Test_MbbiAsynuint32digital",
+        "Test_MbboAsynuint32digital",
+        "Test_BiAsynuint32digital",
+        "Test_BoAsynuint32digital",
     ]
     for i, param in enumerate(params):
         assert expected_param_names[i] == param.name
@@ -65,3 +70,20 @@ def test_generate_header_and_cpp_files(tmp_path, sample_asyn_db):
     with open(cpp_file) as cf:
         with open(expected_cpp) as ec:
             assert cf.read() == ec.read()
+
+
+def test_generate_header_file_with_prefix(tmp_path, sample_asyn_db):
+    params = get_params_from_db(sample_asyn_db, "Test", prefix="TST_MB")
+    generate_header_file_for_db(params, tmp_path, "Test")
+
+    header_file = tmp_path / "TestParamDefs.h"
+    assert header_file.exists()
+
+    with open(header_file) as hf:
+        content = hf.read()
+        assert "Test_MbbiAsynint32" in content
+        assert "Test_MbboAsynint32" in content
+        assert "Test_MbbiAsynuint32digital" in content
+        assert "Test_MbboAsynuint32digital" in content
+        assert "Test_BoAsynint32" not in content
+        assert "Test_AiAsynfloat64" not in content

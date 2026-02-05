@@ -23,6 +23,10 @@
 #define Test_StringoutAsynoctetwriteString "TST_STRINGOUT_ASYNOCTETWRITE"
 #define Test_StringinAsynoctetwriteString "TST_STRINGIN_ASYNOCTETWRITE"
 #define Test_WaveformAsynoctetwriteString "TST_WAVEFORM_ASYNOCTETWRITE"
+#define Test_MbbiAsynuint32digitalString "TST_MBBI_ASYNUINT32DIGITAL"
+#define Test_MbboAsynuint32digitalString "TST_MBBO_ASYNUINT32DIGITAL"
+#define Test_BiAsynuint32digitalString "TST_BI_ASYNUINT32DIGITAL"
+#define Test_BoAsynuint32digitalString "TST_BO_ASYNUINT32DIGITAL"
 
 // Parameter index definitions
 int Test_BoAsynint32;
@@ -43,9 +47,13 @@ int Test_WaveformAsynoctetread;
 int Test_StringoutAsynoctetwrite;
 int Test_StringinAsynoctetwrite;
 int Test_WaveformAsynoctetwrite;
+int Test_MbbiAsynuint32digital;
+int Test_MbboAsynuint32digital;
+int Test_BiAsynuint32digital;
+int Test_BoAsynuint32digital;
 
 #define TEST_FIRST_PARAM Test_BoAsynint32
-#define TEST_LAST_PARAM Test_WaveformAsynoctetwrite
+#define TEST_LAST_PARAM Test_BoAsynuint32digital
 
 #define NUM_TEST_PARAMS ((int)(&TEST_LAST_PARAM - &TEST_FIRST_PARAM + 1))
 

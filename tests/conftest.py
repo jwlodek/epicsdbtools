@@ -7,6 +7,7 @@ ASYN_DTYPES_TO_RTYPES_MAP = {
     "asynFloat64": ["ai", "ao", "longin", "longout"],
     "asynOctetRead": ["stringin", "stringout", "waveform"],
     "asynOctetWrite": ["stringout", "stringin", "waveform"],
+    "asynUInt32Digital": ["mbbi", "mbbo", "bi", "bo"],
 }
 
 
