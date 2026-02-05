@@ -78,7 +78,6 @@ def test_generate_header_file_with_prefix(tmp_path, sample_asyn_db):
 
     header_file = tmp_path / "TestParamDefs.h"
     assert header_file.exists()
-
     with open(header_file) as hf:
         content = hf.read()
         assert "Test_MbbiAsynint32" in content
@@ -87,3 +86,14 @@ def test_generate_header_file_with_prefix(tmp_path, sample_asyn_db):
         assert "Test_MbboAsynuint32digital" in content
         assert "Test_BoAsynint32" not in content
         assert "Test_AiAsynfloat64" not in content
+
+
+def test_generate_header_file_no_params(tmp_path):
+    generate_header_file_for_db([], tmp_path, "EmptyTest")
+    header_file = tmp_path / "EmptyTestParamDefs.h"
+    assert header_file.exists()
+    with open(header_file) as hf:
+        content = hf.read()
+        assert "#define NUM_EMPTYTEST_PARAMS 0" in content
+        assert "#define EMPTYTEST_FIRST_PARAM" not in content
+        assert "#define EMPTYTEST_LAST_PARAM" not in content
