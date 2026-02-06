@@ -5,7 +5,6 @@ Generate asyn parameter definitions from EPICS DB template.
 """
 
 import argparse
-import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -36,7 +35,9 @@ def get_internal_param_type_from_dtyp(dtyp: ParamType) -> str:
         return "asynParam" + dtyp.value.split("asyn")[-1]
 
 
-def get_params_from_db(database: Database, base_name: str, prefix: str | None = None) -> list[ParamDef]:
+def get_params_from_db(
+    database: Database, base_name: str, prefix: str | None = None
+) -> list[ParamDef]:
     params = {}
     for record in database.values():
         for field_name in ["OUT", "INP"]:
@@ -44,7 +45,7 @@ def get_params_from_db(database: Database, base_name: str, prefix: str | None = 
                 param_string = record.fields[field_name].rsplit(")", 1)[-1]
                 if prefix is not None and not param_string.startswith(prefix):
                     logger.info(
-                        f"Skipping param {param_string} as it does not match prefix {prefix}"
+                        f"Skipping {param_string} as it does not start with {prefix}"
                     )
                     continue
 
@@ -92,11 +93,13 @@ def generate_header_file_for_db(
             hf.write(f"int {param.name};\n")
 
         if len(params) > 0:
-            hf.write(f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n")
-            hf.write(f"#define {base_name.upper()}_LAST_PARAM {list(params)[-1].name}\n\n")
-        hf.write(
-            f"#define NUM_{base_name.upper()}_PARAMS {len(params)}\n\n"
-        )
+            hf.write(
+                f"\n#define {base_name.upper()}_FIRST_PARAM {list(params)[0].name}\n"
+            )
+            hf.write(
+                f"#define {base_name.upper()}_LAST_PARAM {list(params)[-1].name}\n\n"
+            )
+        hf.write(f"#define NUM_{base_name.upper()}_PARAMS {len(params)}\n\n")
         hf.write("#endif\n")
 
 
@@ -117,7 +120,7 @@ def generate_cpp_file_for_db(params: list[ParamDef], output_path: Path, base_nam
         cf.write("}\n")
 
 
-def make_parser(parser: argparse.ArgumentParser):
+def add_parser_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "input_path",
         help="Path to the EPICS DB template file, or directory containing it.",
@@ -129,16 +132,20 @@ def make_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-m", "--macros", nargs="*", help="Optional macros to apply to the template."
     )
-    parser.add_argument("-p", "--prefix", help="Optional prefix that can be used to filter out parameters.")
-
-
-def generate_param_defs_cli():
-    parser = argparse.ArgumentParser(
-        description="Generate asyn parameter definitions from EPICS DB template."
+    parser.add_argument(
+        "-p",
+        "--prefix",
+        help="Optional prefix that can be used to filter out parameters.",
     )
-    make_parser(parser)
 
-    args = parser.parse_args()
+
+def main(args: argparse.Namespace | None = None):
+    if args is None:
+        parser = argparse.ArgumentParser(description=__doc__)
+        add_parser_args(parser)
+        args = parser.parse_args()
+
+    main(args)
 
     in_path = Path(args.input_path)
     out_path = Path(args.output_path)
@@ -147,17 +154,13 @@ def generate_param_defs_cli():
         [in_path]
         if in_path.is_file()
         else [
-            in_path /  f
+            in_path / f
             for f in in_path.iterdir()
             if f.is_file() and f.suffix == ".template"
         ]
     )
     for template_file in template_files:
-        base_name = (
-            args.filename
-            if args.filename
-            else template_file.stem
-        )
+        base_name = args.filename if args.filename else template_file.stem
         database = load_database_file(
             template_file, load_includes_strategy=LoadIncludesStrategy.IGNORE
         )
@@ -171,4 +174,4 @@ def generate_param_defs_cli():
 
 
 if __name__ == "__main__":
-    generate_param_defs_cli()
+    main()

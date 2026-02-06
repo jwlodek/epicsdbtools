@@ -3,7 +3,7 @@
 import os
 from collections import OrderedDict
 from collections.abc import Iterator
-from enum import Enum
+from enum import StrEnum
 from io import StringIO
 from pathlib import Path
 
@@ -12,7 +12,7 @@ from .macro import macro_expand, macro_split
 from .tokenizer import Tokenizer
 
 
-class LoadIncludesStrategy(str, Enum):
+class LoadIncludesStrategy(StrEnum):
     LOAD_INTO_SELF = "load_into_self"
     LOAD_INTO_NEW = "load_into_new"
     IGNORE = "ignore"

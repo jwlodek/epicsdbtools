@@ -5,6 +5,7 @@ logging.basicConfig()
 
 logger: logging.Logger = logging.getLogger("epicsdbtools")
 
+
 class ColorFormatter(logging.Formatter):
     """ANSI color formatter for warnings and errors."""
 
@@ -49,4 +50,3 @@ handler.setFormatter(ColorFormatter(fmt, use_color=use_color))
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 logger.propagate = False
-

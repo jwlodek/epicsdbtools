@@ -1,18 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
 """
 Compare EPICS database configured values against actual IOC values.
 """
 
 import argparse
 import os
-from pathlib import Path
 import re
-
+from pathlib import Path
 
 try:
-    from CaChannel import CaChannel, ca
-except Exception:
-    pass
+    import CaChannel
+except ImportError:
+    CaChannel = None
 
 from epicsdbtools import Database, load_database_file, load_template_file
 
@@ -37,11 +37,19 @@ class TablePrinter:
         print(" ".join(["-" * w for w in self.widths]))
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def add_parser_args(parser: argparse.ArgumentParser):
     parser.add_argument("--rtyps", help='record types separated by ",". (default: all)')
     parser.add_argument("subs", help="substitute file")
-    args = parser.parse_args()
+
+
+def main(args: argparse.Namespace | None = None):
+    if args is None:
+        parser = argparse.ArgumentParser(description=__doc__)
+        add_parser_args(parser)
+        args = parser.parse_args()
+
+    if not CaChannel:
+        raise RuntimeError("Required CaChannel module not found!")
 
     if args.rtyps:
         rtyps = args.rtyps.split(",")
@@ -52,9 +60,7 @@ def main():
 
     db = Database()
     for filename, macros in load_template_file(subs):
-        db.update(
-            load_database_file(Path(filename), macros, set([Path(subs).parent]))
-        )
+        db.update(load_database_file(Path(filename), macros, {Path(subs).parent}))
 
     # print output as table
     printer = TablePrinter(30, 15, 15)
@@ -68,15 +74,15 @@ def main():
         # issue connect requests and wait for connection
         chans = {}
         for field in record.fields:
-            chan = CaChannel(record.name + "." + field)
+            chan = CaChannel.CaChannel(record.name + "." + field)
             chan.search()
             chans[field] = chan
-        ca.pend_io(10)
+        CaChannel.ca.pend_io(10)
 
         # issue read requests and wait for completion
         for chan in chans.values():
-            chan.array_get(ca.dbf_type_to_DBR_CTRL(chan.field_type()))
-        ca.pend_io(10)
+            chan.array_get(CaChannel.ca.dbf_type_to_DBR_CTRL(chan.field_type()))
+        CaChannel.ca.pend_io(10)
 
         # compare and print
         all_consistent = True
@@ -93,7 +99,7 @@ def main():
 
             # convert actual or config value for comparison if necessary
             ftype = chan.field_type()
-            if ftype == ca.DBF_STRING:
+            if ftype == CaChannel.ca.DBF_STRING:
                 # remove "NPP" "NMS" from known link fields
                 if re.match(
                     r"SDIS|FLNK|SIOL|SIML|RDBL|RLNK|DINP|RINP|STOO|NVL|SELL|DOL\d?|LNK[1-9A]|OUT[A-U]?|INP[A-U]?|IN([A-L])\1",
@@ -112,7 +118,7 @@ def main():
                 ]:
                     config_value = config_value.upper()
                     actual_value = actual_value.upper()
-            elif ftype == ca.DBF_ENUM:
+            elif ftype == CaChannel.ca.DBF_ENUM:
                 # convert the actual value to the same string as the configured value
                 if not config_value.isdigit():
                     if actual_value < len(dbr["pv_statestrings"]):
@@ -123,7 +129,9 @@ def main():
                 # convert to float for all other numeric types
                 config_value = float(config_value)
 
-            if isinstance(config_value, float) and (isinstance(actual_value, float) or isinstance(actual_value, int)):
+            if isinstance(config_value, float) and (
+                isinstance(actual_value, float) or isinstance(actual_value, int)
+            ):
                 if abs(actual_value - config_value) > 1e-9:
                     all_consistent = False
                     printer.print_line(chan.name(), actual_value, record.fields[field])

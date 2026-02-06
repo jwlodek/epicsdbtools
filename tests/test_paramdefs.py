@@ -15,7 +15,10 @@ def test_get_internal_param_type_from_dtyp():
     assert get_internal_param_type_from_dtyp(ParamType.DOUBLE) == "asynParamFloat64"
     assert get_internal_param_type_from_dtyp(ParamType.STRINGIN) == "asynParamOctet"
     assert get_internal_param_type_from_dtyp(ParamType.STRINGOUT) == "asynParamOctet"
-    assert get_internal_param_type_from_dtyp(ParamType.UINTDIGITAL) == "asynParamUInt32Digital"
+    assert (
+        get_internal_param_type_from_dtyp(ParamType.UINTDIGITAL)
+        == "asynParamUInt32Digital"
+    )
 
 
 def test_get_params_from_db(sample_asyn_db):
