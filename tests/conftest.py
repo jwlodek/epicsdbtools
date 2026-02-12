@@ -1,6 +1,6 @@
 import pytest
 
-from epicsdbtools.database import Database, Record
+from epicsdbtools import Database, Record
 
 ASYN_DTYPES_TO_RTYPES_MAP = {
     "asynInt32": ["bo", "bi", "longin", "longout", "mbbi", "mbbo", "ao", "ai"],

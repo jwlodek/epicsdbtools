@@ -7,9 +7,9 @@ from enum import StrEnum
 from io import StringIO
 from pathlib import Path
 
-from .log import logger
-from .macro import macro_expand, macro_split
-from .tokenizer import Tokenizer
+from ..log import logger
+from ..macro import macro_expand, macro_split
+from ..tokenizer import Tokenizer
 
 
 class LoadIncludesStrategy(StrEnum):

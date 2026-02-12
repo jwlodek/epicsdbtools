@@ -48,5 +48,9 @@ use_color = sys.stderr.isatty()
 fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 handler.setFormatter(ColorFormatter(fmt, use_color=use_color))
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG) # By default, hide debug/info messages
 logger.propagate = False
+
+def set_log_level(level: int) -> None:
+    """Set the logging level for the epicsdbtools logger."""
+    logger.setLevel(level)

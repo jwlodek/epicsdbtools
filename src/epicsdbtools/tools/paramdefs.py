@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from ..database import Database, LoadIncludesStrategy, load_database_file
+from .. import Database, LoadIncludesStrategy, load_database_file
 from ..log import logger
 
 
@@ -144,8 +144,7 @@ def main(args: argparse.Namespace | None = None):
         parser = argparse.ArgumentParser(description=__doc__)
         add_parser_args(parser)
         args = parser.parse_args()
-
-    main(args)
+        main(args)
 
     in_path = Path(args.input_path)
     out_path = Path(args.output_path)
@@ -154,7 +153,7 @@ def main(args: argparse.Namespace | None = None):
         [in_path]
         if in_path.is_file()
         else [
-            in_path / f
+            f
             for f in in_path.iterdir()
             if f.is_file() and f.suffix == ".template"
         ]

@@ -62,7 +62,7 @@ def test_generate_header_and_cpp_files(tmp_path, sample_asyn_db):
     assert header_file.exists()
     assert cpp_file.exists()
 
-    expected_dir = Path(os.path.dirname(__file__)) / "expected_paramdefs"
+    expected_dir = Path(os.path.dirname(__file__)) / "../expected_paramdefs"
     expected_header = expected_dir / "TestParamDefs.h"
     expected_cpp = expected_dir / "TestParamDefs.cpp"
 

@@ -57,9 +57,3 @@ def macro_split(macro_string: str) -> dict[str, str]:
                 name = token
 
     return macros
-
-
-if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod()

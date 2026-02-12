@@ -14,7 +14,7 @@ try:
 except ImportError:
     CaChannel = None
 
-from epicsdbtools import Database, load_database_file, load_template_file
+from epicsdbtools import Database, load_database_file, load_substitution_file
 
 
 class TablePrinter:
@@ -59,7 +59,7 @@ def main(args: argparse.Namespace | None = None):
     subs = os.path.expanduser(args.subs)
 
     db = Database()
-    for filename, macros in load_template_file(subs):
+    for filename, macros in load_substitution_file(subs):
         db.update(load_database_file(Path(filename), macros, {Path(subs).parent}))
 
     # print output as table
