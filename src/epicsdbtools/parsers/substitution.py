@@ -183,8 +183,8 @@ if __name__ == "__main__":
             includes = {Path(subs_file).parent}
             if args.includes:
                 includes.update([Path(i) for i in args.includes])
-            for db_file, macros in load_substitution_file(subs_file):
+            for substitution in load_substitution_file(subs_file):
                 db.update(
-                    load_database_file(Path(db_file), macros, includes, args.encoding)
+                    load_database_file(Path(substitution.file), substitution.macros, includes, args.encoding)
                 )
     print(db)

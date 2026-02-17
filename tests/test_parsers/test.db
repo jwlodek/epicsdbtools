@@ -1,0 +1,153 @@
+record (bo, "AsynTestBoAsynint32") {
+    field(DTYP, "asynInt32")
+    field(OUT , "@asyn($(PORT),0,1)TST_BO_ASYNINT32")
+    info(recordId, "BO_ASYNINT32")
+    alias(BO_ASYNINT32)
+}
+
+record (bi, "AsynTestBiAsynint32") {
+    field(DTYP, "asynInt32")
+    field(INP , "@asyn($(PORT),0,1)TST_BI_ASYNINT32")
+    info(recordId, "BI_ASYNINT32")
+    alias(BI_ASYNINT32)
+}
+
+record (longin, "AsynTestLonginAsynint32") {
+    field(DTYP, "asynInt32")
+    field(INP , "@asyn($(PORT),0,1)TST_LONGIN_ASYNINT32")
+    info(recordId, "LONGIN_ASYNINT32")
+    alias(LONGIN_ASYNINT32)
+}
+
+record (longout, "AsynTestLongoutAsynint32") {
+    field(DTYP, "asynInt32")
+    field(OUT , "@asyn($(PORT),0,1)TST_LONGOUT_ASYNINT32")
+    info(recordId, "LONGOUT_ASYNINT32")
+    alias(LONGOUT_ASYNINT32)
+}
+
+record (mbbi, "AsynTestMbbiAsynint32") {
+    field(DTYP, "asynInt32")
+    field(INP , "@asyn($(PORT),0,1)TST_MBBI_ASYNINT32")
+    info(recordId, "MBBI_ASYNINT32")
+    alias(MBBI_ASYNINT32)
+}
+
+record (mbbo, "AsynTestMbboAsynint32") {
+    field(DTYP, "asynInt32")
+    field(OUT , "@asyn($(PORT),0,1)TST_MBBO_ASYNINT32")
+    info(recordId, "MBBO_ASYNINT32")
+    alias(MBBO_ASYNINT32)
+}
+
+record (ao, "AsynTestAoAsynint32") {
+    field(DTYP, "asynInt32")
+    field(OUT , "@asyn($(PORT),0,1)TST_AO_ASYNINT32")
+    info(recordId, "AO_ASYNINT32")
+    alias(AO_ASYNINT32)
+}
+
+record (ai, "AsynTestAiAsynint32") {
+    field(DTYP, "asynInt32")
+    field(INP , "@asyn($(PORT),0,1)TST_AI_ASYNINT32")
+    info(recordId, "AI_ASYNINT32")
+    alias(AI_ASYNINT32)
+}
+
+record (ai, "AsynTestAiAsynfloat64") {
+    field(DTYP, "asynFloat64")
+    field(INP , "@asyn($(PORT),0,1)TST_AI_ASYNFLOAT64")
+    info(recordId, "AI_ASYNFLOAT64")
+    alias(AI_ASYNFLOAT64)
+}
+
+record (ao, "AsynTestAoAsynfloat64") {
+    field(DTYP, "asynFloat64")
+    field(OUT , "@asyn($(PORT),0,1)TST_AO_ASYNFLOAT64")
+    info(recordId, "AO_ASYNFLOAT64")
+    alias(AO_ASYNFLOAT64)
+}
+
+record (longin, "AsynTestLonginAsynfloat64") {
+    field(DTYP, "asynFloat64")
+    field(INP , "@asyn($(PORT),0,1)TST_LONGIN_ASYNFLOAT64")
+    info(recordId, "LONGIN_ASYNFLOAT64")
+    alias(LONGIN_ASYNFLOAT64)
+}
+
+record (longout, "AsynTestLongoutAsynfloat64") {
+    field(DTYP, "asynFloat64")
+    field(OUT , "@asyn($(PORT),0,1)TST_LONGOUT_ASYNFLOAT64")
+    info(recordId, "LONGOUT_ASYNFLOAT64")
+    alias(LONGOUT_ASYNFLOAT64)
+}
+
+record (stringin, "AsynTestStringinAsynoctetread") {
+    field(DTYP, "asynOctetRead")
+    field(INP , "@asyn($(PORT),0,1)TST_STRINGIN_ASYNOCTETREAD")
+    info(recordId, "STRINGIN_ASYNOCTETREAD")
+    alias(STRINGIN_ASYNOCTETREAD)
+}
+
+record (stringout, "AsynTestStringoutAsynoctetread") {
+    field(DTYP, "asynOctetRead")
+    field(OUT , "@asyn($(PORT),0,1)TST_STRINGOUT_ASYNOCTETREAD")
+    info(recordId, "STRINGOUT_ASYNOCTETREAD")
+    alias(STRINGOUT_ASYNOCTETREAD)
+}
+
+record (waveform, "AsynTestWaveformAsynoctetread") {
+    field(DTYP, "asynOctetRead")
+    field(OUT , "@asyn($(PORT),0,1)TST_WAVEFORM_ASYNOCTETREAD")
+    info(recordId, "WAVEFORM_ASYNOCTETREAD")
+    alias(WAVEFORM_ASYNOCTETREAD)
+}
+
+record (stringout, "AsynTestStringoutAsynoctetwrite") {
+    field(DTYP, "asynOctetWrite")
+    field(OUT , "@asyn($(PORT),0,1)TST_STRINGOUT_ASYNOCTETWRITE")
+    info(recordId, "STRINGOUT_ASYNOCTETWRITE")
+    alias(STRINGOUT_ASYNOCTETWRITE)
+}
+
+record (stringin, "AsynTestStringinAsynoctetwrite") {
+    field(DTYP, "asynOctetWrite")
+    field(INP , "@asyn($(PORT),0,1)TST_STRINGIN_ASYNOCTETWRITE")
+    info(recordId, "STRINGIN_ASYNOCTETWRITE")
+    alias(STRINGIN_ASYNOCTETWRITE)
+}
+
+record (waveform, "AsynTestWaveformAsynoctetwrite") {
+    field(DTYP, "asynOctetWrite")
+    field(OUT , "@asyn($(PORT),0,1)TST_WAVEFORM_ASYNOCTETWRITE")
+    info(recordId, "WAVEFORM_ASYNOCTETWRITE")
+    alias(WAVEFORM_ASYNOCTETWRITE)
+}
+
+record (mbbi, "AsynTestMbbiAsynuint32digital") {
+    field(DTYP, "asynUInt32Digital")
+    field(INP , "@asyn($(PORT),0,1)TST_MBBI_ASYNUINT32DIGITAL")
+    info(recordId, "MBBI_ASYNUINT32DIGITAL")
+    alias(MBBI_ASYNUINT32DIGITAL)
+}
+
+record (mbbo, "AsynTestMbboAsynuint32digital") {
+    field(DTYP, "asynUInt32Digital")
+    field(OUT , "@asyn($(PORT),0,1)TST_MBBO_ASYNUINT32DIGITAL")
+    info(recordId, "MBBO_ASYNUINT32DIGITAL")
+    alias(MBBO_ASYNUINT32DIGITAL)
+}
+
+record (bi, "AsynTestBiAsynuint32digital") {
+    field(DTYP, "asynUInt32Digital")
+    field(INP , "@asyn($(PORT),0,1)TST_BI_ASYNUINT32DIGITAL")
+    info(recordId, "BI_ASYNUINT32DIGITAL")
+    alias(BI_ASYNUINT32DIGITAL)
+}
+
+record (bo, "AsynTestBoAsynuint32digital") {
+    field(DTYP, "asynUInt32Digital")
+    field(OUT , "@asyn($(PORT),0,1)TST_BO_ASYNUINT32DIGITAL")
+    info(recordId, "BO_ASYNUINT32DIGITAL")
+    alias(BO_ASYNUINT32DIGITAL)
+}
