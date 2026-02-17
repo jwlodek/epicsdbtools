@@ -131,3 +131,8 @@ test = "pytest"
 [tool.pixi.dependencies]
 pre-commit = ">=4.5.1,<5"
 ruff = ">=0.15.1,<0.16"
+import-linter = ">=2.10,<3"
+pytest = ">=9.0.2,<10"
+pytest-cov = ">=7.0.0,<8"
+pyright = ">=1.1.408,<2"
+python = ">=3.13,<3.14"
