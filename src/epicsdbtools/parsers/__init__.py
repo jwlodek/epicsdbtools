@@ -1,4 +1,11 @@
-from .database import Database, LoadIncludesStrategy, Record, load_database_file, RecordType, RecordTypeT
+from .database import (
+    Database,
+    LoadIncludesStrategy,
+    Record,
+    RecordType,
+    RecordTypeT,
+    load_database_file,
+)
 from .substitution import load_substitution_file
 
 __all__ = [
@@ -10,4 +17,3 @@ __all__ = [
     "RecordType",
     "RecordTypeT",
 ]
-

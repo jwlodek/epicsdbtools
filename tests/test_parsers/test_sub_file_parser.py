@@ -1,8 +1,10 @@
+import io
+from pathlib import Path
+
 import pytest
 
-from pathlib import Path
 from epicsdbtools.parsers import substitution as sub_file_parser
-import io
+
 
 @pytest.fixture
 def example_substitution_file_content():
@@ -32,6 +34,7 @@ global {
 }
 """
 
+
 @pytest.fixture
 def example_substitution_file(example_substitution_file_content, tmp_path):
 
@@ -42,10 +45,10 @@ def example_substitution_file(example_substitution_file_content, tmp_path):
     return sub_file_path
 
 
-
-
 def test_parse_filename(tokenizer_factory):
-    src = iter(tokenizer_factory("file test.db { pattern { MACRO1, MACRO2 }{VAL1, VAL2}}"))
+    src = iter(
+        tokenizer_factory("file test.db { pattern { MACRO1, MACRO2 }{VAL1, VAL2}}")
+    )
     filename = sub_file_parser.parse_filename(src)
     assert filename == Path("test.db")
 
@@ -69,7 +72,9 @@ def test_parse_macro_value(tokenizer_factory):
     assert values == ["VAL1", "VAL2"]
 
 
-def test_parse_substitution(example_substitution_file, example_substitution_file_content):
+def test_parse_substitution(
+    example_substitution_file, example_substitution_file_content
+):
 
     def _check_sub_file(subs):
         assert len(subs) == 4
@@ -91,4 +96,8 @@ def test_parse_substitution(example_substitution_file, example_substitution_file
         assert list(subs[3].macros.values()) == ["aa", "BB", "MTEST:", "AO4"]
 
     _check_sub_file(sub_file_parser.load_substitution_file(example_substitution_file))
-    _check_sub_file(sub_file_parser.parse_substitution(io.StringIO(example_substitution_file_content)))
+    _check_sub_file(
+        sub_file_parser.parse_substitution(
+            io.StringIO(example_substitution_file_content)
+        )
+    )

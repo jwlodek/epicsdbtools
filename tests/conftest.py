@@ -1,17 +1,36 @@
-import pytest
-
-from epicsdbtools import Database, Record, RecordType
-from epicsdbtools import tokenizer
-from typing import Callable
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
+from epicsdbtools import Database, Record, RecordType, tokenizer
+
 ASYN_DTYPES_TO_RTYPES_MAP: dict[str, list[RecordType]] = {
-    "asynInt32": [RecordType.BO, RecordType.BI, RecordType.LONGIN, RecordType.LONGOUT, RecordType.MBBI, RecordType.MBBO, RecordType.AO, RecordType.AI],
-    "asynFloat64": [RecordType.AI, RecordType.AO, RecordType.LONGIN, RecordType.LONGOUT],
+    "asynInt32": [
+        RecordType.BO,
+        RecordType.BI,
+        RecordType.LONGIN,
+        RecordType.LONGOUT,
+        RecordType.MBBI,
+        RecordType.MBBO,
+        RecordType.AO,
+        RecordType.AI,
+    ],
+    "asynFloat64": [
+        RecordType.AI,
+        RecordType.AO,
+        RecordType.LONGIN,
+        RecordType.LONGOUT,
+    ],
     "asynOctetRead": [RecordType.STRINGIN, RecordType.STRINGOUT, RecordType.WAVEFORM],
     "asynOctetWrite": [RecordType.STRINGOUT, RecordType.STRINGIN, RecordType.WAVEFORM],
-    "asynUInt32Digital": [RecordType.MBBI, RecordType.MBBO, RecordType.BI, RecordType.BO],
+    "asynUInt32Digital": [
+        RecordType.MBBI,
+        RecordType.MBBO,
+        RecordType.BI,
+        RecordType.BO,
+    ],
 }
 
 
@@ -20,7 +39,9 @@ def sample_asyn_db() -> Database:
     db = Database()
     for dtype, rtypes in ASYN_DTYPES_TO_RTYPES_MAP.items():
         for rtype in rtypes:
-            record = Record(f"AsynTest{rtype.value.capitalize()}{dtype.capitalize()}", rtype)
+            record = Record(
+                f"AsynTest{rtype.value.capitalize()}{dtype.capitalize()}", rtype
+            )
 
             record.fields["DTYP"] = dtype
             if rtype.value.endswith("in") or rtype.value.endswith("i"):
@@ -39,10 +60,11 @@ def sample_asyn_db() -> Database:
 
 @pytest.fixture
 def tokenizer_factory() -> Callable[[Path | str], tokenizer.Tokenizer]:
-    def _factory(input: Path| str) -> tokenizer.Tokenizer:
+    def _factory(input: Path | str) -> tokenizer.Tokenizer:
         if isinstance(input, Path):
-            with open(input, "r") as fp:
+            with open(input) as fp:
                 return tokenizer.Tokenizer(StringIO(fp.read()), filename=str(input))
         else:
             return tokenizer.Tokenizer(StringIO(input), filename="test_input.txt")
+
     return _factory

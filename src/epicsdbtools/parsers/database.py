@@ -6,55 +6,56 @@ from collections.abc import Iterator
 from enum import StrEnum
 from io import StringIO
 from pathlib import Path
+from typing import Generic, TypeVar
 
 from ..log import logger
 from ..macro import macro_expand, macro_split
 from ..tokenizer import Tokenizer
 
-from typing import TypeVar, Generic
 
 class RecordType(StrEnum):
     """
     Record types pulled from: https://epics-base.github.io/epics-base/recordrefmanual.html
     """
 
-    AAI = "aai" # Analog Array Input Record 
-    AAO = "aao" # Analog Array Output Record 
-    AI = "ai" # Analog Input Record 
-    AO = "ao" # Analog Output Record 
-    ASUB = "aSub" # Array Subroutine Record 
-    BI = "bi" # Binary Input Record 
-    BO = "bo" # Binary Output Record 
-    CALCOUT = "calcout" # Calculation Output Record 
-    CALC = "calc" # Calculation Record 
-    COMPRESS = "compress" # Compression Record 
-    DFANOUT = "dfanout" # Data Fanout Record 
-    EVENT = "event" # Event Record 
-    FANOUT = "fanout" # Fanout Record 
-    HISTOGRAM = "histogram" # Histogram Record 
-    INT64IN = "int64in" # 64bit Integer Input Record 
-    INT64OUT = "int64out" # 64bit Integer Output Record 
-    LONGIN = "longin" # Long Input Record 
-    LONGOUT = "longout" # Long Output Record 
-    LSI = "lsi" # Long String Input Record 
-    LSO = "lso" # Long String Output Record 
-    MBBIDIRECT = "mbbiDirect" # Multi-Bit Binary Input Direct Record 
-    MBBI = "mbbi" # Multi-Bit Binary Input Record 
-    MBBODIRECT = "mbboDirect" # Multi-Bit Binary Output Direct Record 
-    MBBO = "mbbo" # Multi-Bit Binary Output Record 
-    PERMISSIVE = "permissive" # Permissive Record 
-    PRINF = "prinf" # Printf Record 
-    SEL = "sel" # Select Record 
-    SEQ = "seq" # Sequence Record 
-    STATE = "state" # State Record 
-    STRINGIN = "stringin" # String Input Record 
-    STRINGOUT = "stringout" # String Output Record 
-    SUBARRAY = "subArray" # Sub-Array Record 
-    SUB = "sub" # Subroutine Record 
-    WAVEFORM = "waveform" # Waveform Record 
+    AAI = "aai"  # Analog Array Input Record
+    AAO = "aao"  # Analog Array Output Record
+    AI = "ai"  # Analog Input Record
+    AO = "ao"  # Analog Output Record
+    ASUB = "aSub"  # Array Subroutine Record
+    BI = "bi"  # Binary Input Record
+    BO = "bo"  # Binary Output Record
+    CALCOUT = "calcout"  # Calculation Output Record
+    CALC = "calc"  # Calculation Record
+    COMPRESS = "compress"  # Compression Record
+    DFANOUT = "dfanout"  # Data Fanout Record
+    EVENT = "event"  # Event Record
+    FANOUT = "fanout"  # Fanout Record
+    HISTOGRAM = "histogram"  # Histogram Record
+    INT64IN = "int64in"  # 64bit Integer Input Record
+    INT64OUT = "int64out"  # 64bit Integer Output Record
+    LONGIN = "longin"  # Long Input Record
+    LONGOUT = "longout"  # Long Output Record
+    LSI = "lsi"  # Long String Input Record
+    LSO = "lso"  # Long String Output Record
+    MBBIDIRECT = "mbbiDirect"  # Multi-Bit Binary Input Direct Record
+    MBBI = "mbbi"  # Multi-Bit Binary Input Record
+    MBBODIRECT = "mbboDirect"  # Multi-Bit Binary Output Direct Record
+    MBBO = "mbbo"  # Multi-Bit Binary Output Record
+    PERMISSIVE = "permissive"  # Permissive Record
+    PRINF = "prinf"  # Printf Record
+    SEL = "sel"  # Select Record
+    SEQ = "seq"  # Sequence Record
+    STATE = "state"  # State Record
+    STRINGIN = "stringin"  # String Input Record
+    STRINGOUT = "stringout"  # String Output Record
+    SUBARRAY = "subArray"  # Sub-Array Record
+    SUB = "sub"  # Subroutine Record
+    WAVEFORM = "waveform"  # Waveform Record
 
 
 RecordTypeT = TypeVar("RecordTypeT", bound=RecordType)
+
 
 class LoadIncludesStrategy(StrEnum):
     LOAD_INTO_SELF = "load_into_self"
@@ -79,7 +80,7 @@ class Record(Generic[RecordTypeT]):
         self.aliases: list[str] = []
 
     def __repr__(self) -> str:
-        repr = f'record ({self.rtype.value}, "{self.name}")' + ' {\n'
+        repr = f'record ({self.rtype.value}, "{self.name}")' + " {\n"
         for field, value in self.fields.items():
             repr += f'    field({field:4}, "{value}")\n'
         for field, value in self.infos.items():
@@ -107,12 +108,13 @@ class Record(Generic[RecordTypeT]):
         if not isinstance(other, Record):
             return False
         return (
-            self.name == other.name and
-            self.rtype == other.rtype and
-            self.fields == other.fields and
-            self.infos == other.infos and
-            self.aliases == other.aliases
+            self.name == other.name
+            and self.rtype == other.rtype
+            and self.fields == other.fields
+            and self.infos == other.infos
+            and self.aliases == other.aliases
         )
+
 
 class Database(OrderedDict[str, Record]):
     def __init__(self):
@@ -162,7 +164,9 @@ class Database(OrderedDict[str, Record]):
             return False
 
         for record_name in self.keys():
-            if record_name not in other.keys() or other.get(record_name) != self.get(record_name):
+            if record_name not in other.keys() or other.get(record_name) != self.get(
+                record_name
+            ):
                 return False
         return True
 
@@ -188,6 +192,7 @@ def parse_pair(src: Iterator[str]) -> tuple[str | None, str | None]:
         return None, None
     return field, value
 
+
 def parse_record(src: Iterator[str]) -> Record:
     """
     :param iter src: token generator
@@ -195,7 +200,9 @@ def parse_record(src: Iterator[str]) -> Record:
 
     rtype, name = parse_pair(src)
     if name is None or rtype is None:
-        raise DatabaseException(f"Failed to parse record signature! Name: '{name}', Rtype: '{rtype}'")
+        raise DatabaseException(
+            f"Failed to parse record signature! Name: '{name}', Rtype: '{rtype}'"
+        )
     elif rtype not in RecordType:
         raise DatabaseException(f"Invalid record type '{rtype}' for record '{name}'")
 
@@ -221,7 +228,9 @@ def parse_record(src: Iterator[str]) -> Record:
     return record
 
 
-def find_database_file(filename: Path | str, search_path: set[Path] | None = None) -> Path:
+def find_database_file(
+    filename: Path | str, search_path: set[Path] | None = None
+) -> Path:
     if isinstance(filename, str):
         filename = Path(filename)
 
@@ -233,7 +242,9 @@ def find_database_file(filename: Path | str, search_path: set[Path] | None = Non
             if database_file.exists() and database_file.is_file():
                 return database_file.absolute()
 
-    raise FileNotFoundError(f"Database file '{filename}' not found given search path {search_path}")
+    raise FileNotFoundError(
+        f"Database file '{filename}' not found given search path {search_path}"
+    )
 
 
 def load_database_file(
@@ -275,7 +286,9 @@ def load_database_file(
             lineno += 1
 
     if failed:
-        raise DatabaseException(f"Failed to load database file '{filename}' due to undefined macros")
+        raise DatabaseException(
+            f"Failed to load database file '{filename}' due to undefined macros"
+        )
 
     # parse record instances
     src = iter(Tokenizer(StringIO("".join(lines)), str(filename)))
@@ -295,7 +308,6 @@ def load_database_file(
                 logger.debug(f"Adding alias '{alias_name}' for record '{record_name}'")
                 database[record_name].aliases.append(alias_name)
         elif token == "include":
-            
             inclusion = next(src)
             # Add placeholder entry for included file even if we don't end up loading it
             database.add_included_template(inclusion, None)
@@ -312,13 +324,19 @@ def load_database_file(
                     allow_unmatched_macros,
                 )
                 if load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_SELF:
-                    logger.debug(f"Merging included database from '{inclusion}' into '{filename}'")
+                    logger.debug(
+                        f"Merging database from '{inclusion}' into '{filename}'"
+                    )
                     database.merge(included_db)
                 elif load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_NEW:
-                    logger.debug(f"Adding included database from '{inclusion}' as a separate template")
+                    logger.debug(
+                        f"Adding database from '{inclusion}' as a separate template"
+                    )
                     database.add_included_template(inclusion, included_db)
         else:
-            raise DatabaseException("Invalid token encountered while parsing database file")
+            raise DatabaseException(
+                "Invalid token encountered while parsing database file"
+            )
 
     logger.info(f"Loaded {len(database)} unique records from '{filename}'")
 

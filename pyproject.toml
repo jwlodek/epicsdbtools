@@ -112,3 +112,22 @@ exclude = [
 
 [tool.importlinter]
 root_package = "epicsdbtools"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+epicsdbtools = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.tasks]
+lint = "pre-commit run --all-files"
+test = "pytest"
+
+[tool.pixi.dependencies]
+pre-commit = ">=4.5.1,<5"
+ruff = ">=0.15.1,<0.16"

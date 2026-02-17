@@ -1,6 +1,14 @@
 from ._version import __version__
-from .parsers import Database, LoadIncludesStrategy, Record, load_database_file, load_substitution_file, RecordType, RecordTypeT
 from .log import set_log_level
+from .parsers import (
+    Database,
+    LoadIncludesStrategy,
+    Record,
+    RecordType,
+    RecordTypeT,
+    load_database_file,
+    load_substitution_file,
+)
 
 __all__ = [
     "__version__",

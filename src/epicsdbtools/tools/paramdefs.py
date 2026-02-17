@@ -152,11 +152,7 @@ def main(args: argparse.Namespace | None = None):
     template_files = (
         [in_path]
         if in_path.is_file()
-        else [
-            f
-            for f in in_path.iterdir()
-            if f.is_file() and f.suffix == ".template"
-        ]
+        else [f for f in in_path.iterdir() if f.is_file() and f.suffix == ".template"]
     )
     for template_file in template_files:
         base_name = args.filename if args.filename else template_file.stem
