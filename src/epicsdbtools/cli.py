@@ -14,16 +14,7 @@ class CLIModuleProtocol(Protocol):
     __doc__: str | None
 
 
-def main():
-
-    parser = argparse.ArgumentParser(
-        description="A CLI utility for EPICS database operations."
-    )
-    parser.add_argument("--version", action="version", version="epicsdbtools 1.0.0")
-    subparsers = parser.add_subparsers(
-        dest="command", help="Available commands", required=True
-    )
-
+def get_cli_modules() -> dict[str, CLIModuleProtocol]:
     cli_modules: dict[str, CLIModuleProtocol] = {}
     for command in cli_tools:
         try:
@@ -40,7 +31,15 @@ def main():
             logger.error(
                 f"Failed to import CLI module for command: {command}", exc_info=True
             )
+    return cli_modules
 
+
+def create_cli_module_subparsers(
+    parser: argparse.ArgumentParser, cli_modules: dict[str, CLIModuleProtocol]
+):
+    subparsers = parser.add_subparsers(
+        dest="command", help="Available commands", required=True
+    )
     for command in cli_modules.keys():
         logger.debug(f"Adding CLI subcommand: {command}")
 
@@ -59,6 +58,17 @@ def main():
                 add_parser_args_fn(cli_module_parser)
         else:
             logger.debug(f"No add_parser_args function found for command: {command}")
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="A CLI utility for EPICS database operations."
+    )
+    parser.add_argument("--version", action="version", version="epicsdbtools 1.0.0")
+
+    cli_modules = get_cli_modules()
+    create_cli_module_subparsers(parser, cli_modules)
 
     args = parser.parse_args()
     if hasattr(cli_modules[args.command], "main"):

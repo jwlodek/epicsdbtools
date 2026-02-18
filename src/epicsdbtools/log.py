@@ -49,7 +49,7 @@ fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 handler.setFormatter(ColorFormatter(fmt, use_color=use_color))
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)  # By default, hide debug/info messages
-logger.propagate = False
+logger.propagate = True
 
 
 def set_log_level(level: int) -> None:
