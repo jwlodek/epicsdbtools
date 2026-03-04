@@ -53,7 +53,7 @@ def test_get_params_from_db(sample_asyn_db):
 
 def test_generate_header_and_cpp_files(tmp_path, sample_asyn_db):
     params = get_params_from_db(sample_asyn_db, "Test")
-    generate_header_file_for_db(params, tmp_path, "Test")
+    generate_header_file_for_db(params, tmp_path, "Test", "Test")
     generate_cpp_file_for_db(params, tmp_path, "Test")
 
     header_file = tmp_path / "TestParamDefs.h"
@@ -77,7 +77,7 @@ def test_generate_header_and_cpp_files(tmp_path, sample_asyn_db):
 
 def test_generate_header_file_with_prefix(tmp_path, sample_asyn_db):
     params = get_params_from_db(sample_asyn_db, "Test", prefix="TST_MB")
-    generate_header_file_for_db(params, tmp_path, "Test")
+    generate_header_file_for_db(params, tmp_path, "Test", "Test")
 
     header_file = tmp_path / "TestParamDefs.h"
     assert header_file.exists()
@@ -92,7 +92,7 @@ def test_generate_header_file_with_prefix(tmp_path, sample_asyn_db):
 
 
 def test_generate_header_file_no_params(tmp_path):
-    generate_header_file_for_db([], tmp_path, "EmptyTest")
+    generate_header_file_for_db([], tmp_path, "EmptyTest", "EmptyTest")
     header_file = tmp_path / "EmptyTestParamDefs.h"
     assert header_file.exists()
     with open(header_file) as hf:
