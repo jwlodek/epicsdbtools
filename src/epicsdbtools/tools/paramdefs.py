@@ -42,7 +42,7 @@ def get_params_from_db(
     for record in database.values():
         for field_name in ["OUT", "INP"]:
             if field_name in record.fields:
-                param_string = record.fields[field_name].rsplit(")", 1)[-1]
+                param_string = str(record.fields[field_name]).rsplit(")", 1)[-1]
                 if prefix is not None and not param_string.startswith(prefix):
                     logger.info(
                         f"Skipping {param_string} as it does not start with {prefix}"
@@ -70,16 +70,16 @@ def get_params_from_db(
 
 
 def generate_header_file_for_db(
-    params: list[ParamDef], output_path: Path, base_name: str
+    params: list[ParamDef], output_path: Path, driver_name: str, base_name: str
 ):
-    header_file = output_path / f"{base_name}ParamDefs.h"
+    header_file = output_path / f"{driver_name}ParamDefs.h"
     logger.info(f"Generating header file {header_file} for {len(params)} params")
 
     with open(header_file, "w") as hf:
         hf.write(f"#ifndef {base_name.upper()}_PARAM_DEFS_H\n")
         hf.write(f"#define {base_name.upper()}_PARAM_DEFS_H\n\n")
         hf.write("// This file is auto-generated. Do not edit directly.\n")
-        hf.write(f"// Generated from {base_name}.template\n\n")
+        hf.write(f"// Generated from {driver_name}.template\n\n")
 
         hf.write("// String definitions for parameters\n")
         for param in params:
@@ -103,15 +103,17 @@ def generate_header_file_for_db(
         hf.write("#endif\n")
 
 
-def generate_cpp_file_for_db(params: list[ParamDef], output_path: Path, base_name: str):
-    cpp_file = output_path / f"{base_name}ParamDefs.cpp"
+def generate_cpp_file_for_db(
+    params: list[ParamDef], output_path: Path, driver_name: str
+):
+    cpp_file = output_path / f"{driver_name}ParamDefs.cpp"
     logger.info(f"Generating cpp file {cpp_file} for {len(params)} params")
 
     with open(cpp_file, "w") as cf:
         cf.write("// This file is auto-generated. Do not edit directly.\n")
-        cf.write(f"// Generated from {base_name}.template\n\n")
-        cf.write(f'#include "{base_name}.h"\n\n')
-        cf.write(f"void {base_name}::createAllParams() {{\n")
+        cf.write(f"// Generated from {driver_name}.template\n\n")
+        cf.write(f'#include "{driver_name}.h"\n\n')
+        cf.write(f"void {driver_name}::createAllParams() {{\n")
         for param in params:
             logger.debug(f"Creating param: {param.name}")
             cf.write(
@@ -160,9 +162,9 @@ def main(args: argparse.Namespace | None = None):
         else [f for f in in_path.iterdir() if f.is_file() and f.suffix == ".template"]
     )
     for template_file in template_files:
-        base_name = args.filename if args.filename else template_file.stem
-        if args.use_prefix_as_base and args.prefix:
-            base_name = args.prefix
+        driver_name = args.filename if args.filename else template_file.stem
+        base_name = driver_name if not args.use_prefix_as_base else args.prefix
+
         database = load_database_file(
             template_file, load_includes_strategy=LoadIncludesStrategy.IGNORE
         )
@@ -171,8 +173,8 @@ def main(args: argparse.Namespace | None = None):
             logger.info(
                 f"Param: {param.name}, Type: {param.type}, Record: {param.record_str}"
             )
-        generate_header_file_for_db(params, out_path, base_name)
-        generate_cpp_file_for_db(params, out_path, base_name)
+        generate_header_file_for_db(params, out_path, driver_name, base_name)
+        generate_cpp_file_for_db(params, out_path, driver_name)
 
 
 if __name__ == "__main__":
