@@ -140,7 +140,7 @@ def add_parser_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--use-prefix-as-base",
         action="store_true",
-        help="Use the provided prefix as the base name for generated files instead of the template file name.",
+        help="Use the prefix as the base name for generated files.",
     )
 
 
