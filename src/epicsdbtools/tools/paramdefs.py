@@ -137,6 +137,11 @@ def add_parser_args(parser: argparse.ArgumentParser):
         "--prefix",
         help="Optional prefix that can be used to filter out parameters.",
     )
+    parser.add_argument(
+        "--use-prefix-as-base",
+        action="store_true",
+        help="Use the prefix as the base name for generated files.",
+    )
 
 
 def main(args: argparse.Namespace | None = None):
@@ -156,6 +161,8 @@ def main(args: argparse.Namespace | None = None):
     )
     for template_file in template_files:
         base_name = args.filename if args.filename else template_file.stem
+        if args.use_prefix_as_base and args.prefix:
+            base_name = args.prefix
         database = load_database_file(
             template_file, load_includes_strategy=LoadIncludesStrategy.IGNORE
         )
