@@ -88,12 +88,12 @@ class SubstitutionParseState(int, Enum):
 
 
 @dataclass
-class Subsitution:
+class Substitution:
     file: Path
     macros: dict[str, str]
 
 
-def parse_substitution(source: StringIO) -> list[Subsitution]:
+def parse_substitution(source: StringIO) -> list[Substitution]:
     """
     :param buffer source: EPICS substitutes
     :return: list of (filename, macros, values)
@@ -139,7 +139,7 @@ def parse_substitution(source: StringIO) -> list[Subsitution]:
                         d.update(zip(macros, values, strict=False))
                         if file_path is None:
                             raise ValueError("File path could not be determined")
-                        files.append(Subsitution(file_path, d))
+                        files.append(Substitution(file_path, d))
                     case "}":
                         saved_state = state
                         state = SubstitutionParseState.NEUTRAL
