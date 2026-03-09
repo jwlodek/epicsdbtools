@@ -72,9 +72,9 @@ class DatabaseException(Exception):
 
 
 class Record(Generic[RecordTypeT]):
-    def __init__(self, name: str, rtype: RecordTypeT):
+    def __init__(self, name: str, rtype: RecordTypeT | str):
         self.name = name
-        self.rtype = rtype
+        self.rtype = rtype if isinstance(rtype, RecordType) else RecordType(rtype)
         self.infos: OrderedDict[str, str] = OrderedDict()
         self.fields: OrderedDict[str, str | int] = OrderedDict()
         self.aliases: list[str] = []

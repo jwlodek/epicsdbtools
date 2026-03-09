@@ -8,12 +8,14 @@ from .parsers import (
     RecordTypeT,
     load_database_file,
     load_substitution_file,
+    Subsitution,
 )
 
 __all__ = [
     "__version__",
     "Database",
     "Record",
+    "Subsitution",
     "RecordType",
     "RecordTypeT",
     "load_database_file",
