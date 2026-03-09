@@ -6,12 +6,12 @@ from .database import (
     RecordTypeT,
     load_database_file,
 )
-from .substitution import load_substitution_file, Subsitution
+from .substitution import load_substitution_file, Substitution
 
 __all__ = [
     "Database",
     "Record",
-    "Subsitution",
+    "Substitution",
     "load_database_file",
     "LoadIncludesStrategy",
     "load_substitution_file",
