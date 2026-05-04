@@ -6,7 +6,7 @@ from .database import (
     RecordTypeT,
     load_database_file,
 )
-from .substitution import load_substitution_file, Substitution
+from .substitution import Substitution, load_substitution_file
 
 __all__ = [
     "Database",

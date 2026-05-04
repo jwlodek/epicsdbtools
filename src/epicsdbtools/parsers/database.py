@@ -203,10 +203,13 @@ def parse_record(src: Iterator[str]) -> Record:
         raise DatabaseException(
             f"Failed to parse record signature! Name: '{name}', Rtype: '{rtype}'"
         )
-    elif rtype not in RecordType:
-        raise DatabaseException(f"Invalid record type '{rtype}' for record '{name}'")
 
-    record = Record(name=name, rtype=RecordType[rtype.upper()])
+    try:
+        record_type = RecordType[rtype.upper()]
+    except KeyError as err:
+        raise DatabaseException(f"Invalid record type '{rtype}' for '{name}'") from err
+
+    record = Record(name=name, rtype=record_type)
 
     token = next(src)
     while True:
