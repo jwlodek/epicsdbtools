@@ -39,7 +39,7 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Run type checks
-        run: uv run --frozen pyright src tests
+        run: uv run --frozen ty check src tests
 
   test:
     name: Unit Tests - Python ${{ matrix.python-version }}

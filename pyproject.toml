@@ -10,6 +10,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 description = "Python module for parsing EPICS database templates and substitution files"
 dynamic = ["version"]
@@ -19,12 +20,11 @@ requires-python = ">=3.11"
 
 [dependency-groups]
 dev = [
-    "pipdeptree",
     "pre-commit",
-    "pyright",
     "pytest",
     "pytest-cov",
     "ruff",
+    "ty",
     "types-mock",
     "import-linter",
 ]
