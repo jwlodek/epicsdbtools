@@ -17,16 +17,14 @@ license.file = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.11"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "copier",
     "pipdeptree",
     "pre-commit",
     "pyright",
     "pytest",
     "pytest-cov",
     "ruff",
-    "tox-direct",
     "types-mock",
     "import-linter",
 ]
@@ -35,7 +33,7 @@ dev = [
 epicsdbtools = "epicsdbtools.cli:main"
 
 [project.urls]
-GitHub = "https://github.com/jwlodek/epics-dbtools"
+GitHub = "https://github.com/jwlodek/epicsdbtools"
 
 [[project.authors]] # Further authors may be added by duplicating this section
 email = "jwlodek@bnl.gov"
@@ -66,27 +64,6 @@ data_file = "/tmp/epicsdbtools.coverage"
 # Tests are run from installed location, map back to the src directory
 source = ["src", "**/site-packages/"]
 
-# tox must currently be configured via an embedded ini string
-# See: https://github.com/tox-dev/tox/issues/999
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-skipsdist=True
-
-[testenv:{pre-commit,type-checking,tests}]
-# Don't create a virtualenv for the command, requires tox-direct plugin
-direct = True
-passenv = *
-allowlist_externals =
-    pytest
-    pre-commit
-    pyright
-commands =
-    pre-commit: pre-commit run --all-files --show-diff-on-failure {posargs}
-    type-checking: pyright src tests {posargs}
-    tests: pytest --cov=epicsdbtools --cov-report term --cov-report xml:cov.xml {posargs}
-"""
-
 [tool.ruff]
 src = ["src", "tests"]
 line-length = 88
@@ -112,27 +89,3 @@ exclude = [
 
 [tool.importlinter]
 root_package = "epicsdbtools"
-
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["linux-64"]
-
-[tool.pixi.pypi-dependencies]
-epicsdbtools = { path = ".", editable = true }
-
-[tool.pixi.environments]
-default = { solve-group = "default" }
-dev = { features = ["dev"], solve-group = "default" }
-
-[tool.pixi.tasks]
-lint = "pre-commit run --all-files"
-test = "pytest"
-
-[tool.pixi.dependencies]
-pre-commit = ">=4.5.1,<5"
-ruff = ">=0.15.1,<0.16"
-import-linter = ">=2.10,<3"
-pytest = ">=9.0.2,<10"
-pytest-cov = ">=7.0.0,<8"
-pyright = ">=1.1.408,<2"
-python = ">=3.13,<3.14"

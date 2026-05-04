@@ -10,45 +10,57 @@ on:
   workflow_dispatch:
 
 jobs:
-  Lint:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@8ca4608ef7f4daeb54f5205b20d0b7cb42f11143  # v0.8.14
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Lint
+        run: uv run --frozen pre-commit run --all-files
+
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
         with:
-          pixi-version: v0.56.0
-          cache: false
-          frozen: true
+          persist-credentials: false
 
-      - name: Run linting checks
-        run: pixi run lint
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
+      - name: Run type checks
+        run: uv run --frozen pyright src tests
 
   test:
-    name: Unit Tests
+    name: Unit Tests - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"] #, "3.14"]
+      fail-fast: false
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@8ca4608ef7f4daeb54f5205b20d0b7cb42f11143  # v0.8.14
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          pixi-version: v0.56.0
-          cache: false
-          frozen: true
+          python-version: ${{ matrix.python-version }}
 
-      - name: Run Unit Tests
-        run: |
-          pixi run test --cov=epicsdbtools --cov-report=xml:coverage.xml
+      - name: Run tests for given python version
+        run: uv run --frozen pytest --cov=src/epicsdbtools --cov-report=xml --cov-report=term
 
       - name: Upload Coverage To Codecov
         uses: codecov/codecov-action@v5
