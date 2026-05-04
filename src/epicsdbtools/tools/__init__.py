@@ -1,3 +1,3 @@
-from . import dbiocdiff, paramdefs
+from . import paramdefs
 
-__all__ = ["dbiocdiff", "paramdefs"]
+__all__ = ["paramdefs"]
