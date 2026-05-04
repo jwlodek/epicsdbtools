@@ -6,9 +6,9 @@ from .parsers import (
     Record,
     RecordType,
     RecordTypeT,
+    Substitution,
     load_database_file,
     load_substitution_file,
-    Substitution,
 )
 
 __all__ = [
