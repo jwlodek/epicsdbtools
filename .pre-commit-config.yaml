@@ -24,8 +24,15 @@ repos:
         types: [python]
         require_serial: true
 
+      - id: ty
+        name: type check with ty
+        entry: ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+
       - id: import-contracts
-        name: Ensure import directionality
+        name: ensure import directionality
         pass_filenames: false
         language: system
         entry: lint-imports
