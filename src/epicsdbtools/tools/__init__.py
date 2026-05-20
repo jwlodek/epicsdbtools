@@ -1,3 +1,3 @@
-from . import paramdefs
+from . import paramdefs, ioc_startup_linter
 
-__all__ = ["paramdefs"]
+__all__ = ["paramdefs", "ioc_startup_linter"]
