@@ -1,0 +1,11 @@
+record(ai, "$(P)$(R)Temperature") {
+    field(DTYP, "asynFloat64")
+    field(INP, "@asyn($(PORT),0,1)TEMP")
+    field(PREC, "3")
+}
+
+record(ao, "$(P)$(R)SetTemp") {
+    field(DTYP, "asynFloat64")
+    field(OUT, "@asyn($(PORT),0,1)SET_TEMP")
+    field(PREC, "3")
+}
