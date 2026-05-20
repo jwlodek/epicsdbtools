@@ -6,17 +6,18 @@ import pytest
 from epicsdbtools.parsers.database import DatabaseException
 from epicsdbtools.tools.ioc_startup_linter import add_parser_args, main
 
-
 DATA_DIR = Path(__file__).parent.parent / "test_parsers" / "test_iocsh_data"
 
 
 @pytest.fixture
 def make_args():
     """Helper to create an argparse.Namespace for the linter."""
+
     def _make_args(input_path: str | Path):
         parser = argparse.ArgumentParser()
         add_parser_args(parser)
         return parser.parse_args([str(input_path)])
+
     return _make_args
 
 
@@ -45,14 +46,14 @@ def test_linter_file_not_found(make_args):
 def test_linter_missing_sourced_file(tmp_path, make_args):
     """A startup script sourcing a non-existent file should raise FileNotFoundError."""
     cmd_file = tmp_path / "st.cmd"
-    cmd_file.write_text('< nonexistent_file.cmd\n')
+    cmd_file.write_text("< nonexistent_file.cmd\n")
     args = make_args(cmd_file)
     with pytest.raises(FileNotFoundError, match="Sourced script not found"):
         main(args)
 
 
 def test_linter_missing_db_file(tmp_path, make_args):
-    """A startup script loading a non-existent database should raise FileNotFoundError."""
+    """A startup script loading a non-existent db should raise FileNotFoundError."""
     cmd_file = tmp_path / "st.cmd"
     cmd_file.write_text('dbLoadRecords("missing.db", "P=x")\n')
     args = make_args(cmd_file)

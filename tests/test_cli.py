@@ -10,7 +10,7 @@ from epicsdbtools.cli import (
     get_cli_modules,
 )
 from epicsdbtools.tools import __all__ as cli_tools
-from epicsdbtools.tools import paramdefs, ioc_startup_linter
+from epicsdbtools.tools import ioc_startup_linter, paramdefs
 
 
 class TestCLIModuleProtocol:
