@@ -10,57 +10,91 @@ from .database import (
     LoadIncludesStrategy,
     load_database_file,
 )
+from .database_definition import DatabaseDefinition, load_dbd_file
 from .substitution import load_substitution_file
 
 
 @dataclass
 class IocshCommand:
+    """Represents a generic iocsh command that is not specifically handled by the parser.
+    
+    Attributes
+    ----------
+    name : str
+        The name of the iocsh command (e.g., "epicsEnvSet", "dbLoadRecords").
+    args : list[str]
+        The list of arguments passed to the command, after macro expansion and stripping.
+    """
+
     name: str
     args: list[str]
 
 
 @dataclass
 class IocshState:
+    """Represents the accumulated state of an IOC shell startup script after processing commands.
+
+    Attributes
+    ----------
+    macros : dict[str, str]
+        The dictionary of macro definitions.
+    databases : list[Database]
+        The list of loaded databases.
+    dbd : DatabaseDefinition | None
+        The loaded database definition, if any.
+    other_commands : list[IocshCommand]
+        The list of other iocsh commands that are not specifically handled.
+    """
+
     macros: dict[str, str] = field(default_factory=dict)
     databases: list[Database] = field(default_factory=list)
+    dbd: DatabaseDefinition | None = None
     other_commands: list[IocshCommand] = field(default_factory=list)
 
     def update(self, other: IocshState) -> None:
         self.macros.update(other.macros)
         self.databases.extend(other.databases)
+        if other.dbd is not None:
+            self.dbd = other.dbd
         self.other_commands.extend(other.other_commands)
 
 
-def _expand_macros(text: str, macros: dict[str, str], strict: bool = False) -> str:
+def _expand_macros(text: str, macros: dict[str, str]) -> str:
     """Expand macros in a string.
 
     Parameters
     ----------
     text : str
         The text containing macro references to expand.
-    macros : dict
+    macros : dict[str, str]
         The macro definitions to use for expansion.
-    strict : bool
-        If True, raise UndefinedMacroError when any macros remain unresolved.
 
-    Raises
-    ------
-    UndefinedMacroError
-        If strict is True and there are unresolved macros.
+    Returns
+    -------
+    str
+        The text with all resolvable macros expanded. Unresolved macros
+        are left as-is.
     """
-    expanded, unmatched = macro_expand(text, macros)
-    if strict and unmatched:
-        raise DatabaseException(f"Undefined macros in '{text}': {', '.join(unmatched)}")
+    expanded, _ = macro_expand(text, macros)
     return expanded
 
 
 def _parse_command_line(line: str) -> list[str] | None:
     """Parse an iocsh command line into command name and arguments.
 
-    Returns None for empty/comment lines.
     Handles both forms:
       - command("arg1", "arg2")
       - command arg1, arg2
+    
+    Parameters
+    ----------
+    line : str
+        The iocsh command line to parse.
+
+    Returns
+    -------
+    list[str] | None
+        The parsed command name and arguments, or None for empty/comment lines.
     """
     line = line.strip()
     if not line or line.startswith("#"):
@@ -96,7 +130,19 @@ def _parse_command_line(line: str) -> list[str] | None:
 
 
 def _split_args(arg_str: str) -> list[str]:
-    """Split argument string on commas, respecting quoted sections."""
+    """Split argument string on commas, respecting quoted sections.
+    
+    Parameters
+    ----------
+    arg_str : str
+        The argument string to split.
+
+    Returns
+    -------
+    list[str]
+        The list of split arguments.
+    """
+
     args = []
     current = []
     in_quote = None
@@ -121,7 +167,7 @@ def _split_args(arg_str: str) -> list[str]:
 
 
 def consume_iocsh_command(
-    line: str, current_state: IocshState, strict_macros: bool = False
+    line: str, current_state: IocshState
 ) -> None:
     """Process a single iocsh command line, mutating the current state.
 
@@ -134,11 +180,13 @@ def consume_iocsh_command(
 
     Parameters
     ----------
-    strict_macros : bool
-        If True, raise UndefinedMacroError on unresolved macro substitutions.
+    line : str
+        The iocsh command line to process.
+    current_state : IocshState
+        The current accumulated state to update based on the command.
     """
     # Expand macros in the line first
-    line = _expand_macros(line, current_state.macros, strict=strict_macros)
+    line = _expand_macros(line, current_state.macros)
 
     parsed = _parse_command_line(line)
     if parsed is None:
@@ -154,7 +202,17 @@ def consume_iocsh_command(
             value = args[1]
             current_state.macros[key] = value
 
-    elif command in ("dbLoadRecords", "dbLoadDatabase"):
+    elif command == "dbLoadDatabase":
+        # dbLoadDatabase("file.dbd", "path", "substitutions")
+        if len(args) >= 1:
+            dbd_path = Path(args[0])
+            if not dbd_path.exists():
+                raise FileNotFoundError(
+                    f"Database definition file not found: {dbd_path}"
+                )
+            current_state.dbd = load_dbd_file(dbd_path)
+
+    elif command == "dbLoadRecords":
         # dbLoadRecords("file.db", "macros")
         if len(args) >= 1:
             db_path = Path(args[0])
@@ -169,7 +227,7 @@ def consume_iocsh_command(
                 db_path,
                 macros=combined_macros,
                 load_includes_strategy=LoadIncludesStrategy.LOAD_INTO_SELF,
-                allow_unmatched_macros=not strict_macros,
+                allow_unmatched_macros=True,
             )
             current_state.databases.append(db)
 
@@ -198,9 +256,7 @@ def consume_iocsh_command(
 def load_iocsh_file(
     filepath: Path,
     macros: dict[str, str] | None = None,
-    *,
     resolve_sources: bool = True,
-    strict_macros: bool = False,
 ) -> IocshState:
     """Parse an IOC shell startup file and return the resulting state.
 
@@ -208,13 +264,10 @@ def load_iocsh_file(
     ----------
     filepath : Path
         Path to the IOC shell startup script (e.g., st.cmd).
-    macros : dict, optional
+    macros : dict[str, str], optional
         Initial macros/environment variables to seed the state with.
     resolve_sources : bool
         If True, recursively parse sourced scripts (< file or iocshLoad).
-    strict_macros : bool
-        If True, raise UndefinedMacroError when a macro substitution cannot
-        be resolved.
 
     Returns
     -------
@@ -238,7 +291,7 @@ def load_iocsh_file(
                 continue
 
             # Expand macros in the line
-            expanded_line = _expand_macros(line, state.macros, strict=strict_macros)
+            expanded_line = _expand_macros(line, state.macros)
 
             # Handle source redirect: < filename
             if expanded_line.startswith("<"):
@@ -264,7 +317,6 @@ def load_iocsh_file(
                         sourced_path,
                         macros=state.macros,
                         resolve_sources=resolve_sources,
-                        strict_macros=strict_macros,
                     )
                     state.update(child_state)
                 continue
@@ -291,7 +343,6 @@ def load_iocsh_file(
                             script_path,
                             macros=sub_macros,
                             resolve_sources=resolve_sources,
-                            strict_macros=strict_macros,
                         )
                         state.update(child_state)
                     else:
@@ -299,6 +350,6 @@ def load_iocsh_file(
                             f"Sourced script not found: {script_path}"
                         )
             else:
-                consume_iocsh_command(expanded_line, state, strict_macros=strict_macros)
+                consume_iocsh_command(expanded_line, state)
 
     return state

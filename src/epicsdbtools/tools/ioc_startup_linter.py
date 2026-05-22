@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from ..parsers import load_iocsh_file
+from ..validation import validate_ioc_or_raise
 
 
 def add_parser_args(parser: argparse.ArgumentParser):
@@ -27,8 +28,6 @@ def main(args: argparse.Namespace | None = None):
             f"Invalid file type: {args.input_path}, must be .cmd or .iocsh"
         )
 
-    iocsh_state = load_iocsh_file(args.input_path, strict_macros=True)
-    # Perform linting on the loaded IOC shell state
-    # This is where you would implement the actual linting logic
-    # For now, we'll just print the loaded state
+    iocsh_state = load_iocsh_file(args.input_path)
+    validate_ioc_or_raise(iocsh_state)
     print(iocsh_state)

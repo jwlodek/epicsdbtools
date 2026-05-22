@@ -1,0 +1,99 @@
+# Minimal dbd for testing validation
+menu(menuScan) {
+    choice(menuScanPassive, "Passive")
+    choice(menuScanEvent, "Event")
+    choice(menuScanI_O_Intr, "I/O Intr")
+}
+
+recordtype(ai) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(DESC, DBF_STRING) {
+        prompt("Descriptor")
+        size(41)
+    }
+    field(VAL, DBF_DOUBLE) {
+        prompt("Current EGU Value")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(INP, DBF_INLINK) {
+        prompt("Input Specification")
+    }
+    field(DTYP, DBF_STRING) {
+        prompt("Device Type")
+        size(40)
+    }
+    field(PREC, DBF_SHORT) {
+        prompt("Display Precision")
+    }
+    field(EGU, DBF_STRING) {
+        prompt("Engineering Units")
+        size(16)
+    }
+    field(SCAN, DBF_MENU) {
+        prompt("Scan Mechanism")
+    }
+}
+
+recordtype(ao) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(DESC, DBF_STRING) {
+        prompt("Descriptor")
+        size(41)
+    }
+    field(VAL, DBF_DOUBLE) {
+        prompt("Desired Output")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(OUT, DBF_OUTLINK) {
+        prompt("Output Specification")
+    }
+    field(DTYP, DBF_STRING) {
+        prompt("Device Type")
+        size(40)
+    }
+    field(PREC, DBF_SHORT) {
+        prompt("Display Precision")
+    }
+}
+
+recordtype(bi) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(VAL, DBF_ENUM) {
+        prompt("Current Value")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(INP, DBF_INLINK) {
+        prompt("Input Specification")
+    }
+    field(DTYP, DBF_STRING) {
+        prompt("Device Type")
+        size(40)
+    }
+}
+
+device(ai, CONSTANT, devAiSoft, "Soft Channel")
+device(ai, INST_IO, asynAiFloat64, "asynFloat64")
+device(ao, CONSTANT, devAoSoft, "Soft Channel")
+device(ao, INST_IO, asynAoFloat64, "asynFloat64")
+device(bi, CONSTANT, devBiSoft, "Soft Channel")
+
+registrar(asSub)
+registrar(myDriverRegister)
+
+function(mySubProcess)
+function(myCustomInit)

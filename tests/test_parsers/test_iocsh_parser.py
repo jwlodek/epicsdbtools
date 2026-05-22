@@ -11,6 +11,7 @@ from epicsdbtools.parsers.iocsh import (
     consume_iocsh_command,
     load_iocsh_file,
 )
+from epicsdbtools.validation import validate_macros
 
 DATA_DIR = Path(__file__).parent / "test_iocsh_data"
 
@@ -32,13 +33,8 @@ def test_expand_macros(text, macros, expected):
     assert _expand_macros(text, macros) == expected
 
 
-def test_expand_macros_strict_raises_on_undefined():
-    with pytest.raises(DatabaseException, match="Undefined macros"):
-        _expand_macros("$(MISSING)", {}, strict=True)
-
-
-def test_expand_macros_strict_no_error_when_all_defined():
-    assert _expand_macros("$(X)", {"X": "val"}, strict=True) == "val"
+def test_expand_macros_unresolved_left_as_is():
+    assert _expand_macros("$(MISSING)", {}) == "$(MISSING)"
 
 
 # --- _parse_command_line tests ---
@@ -100,10 +96,12 @@ def test_consume_db_load_records():
     assert len(state.databases[0]) == 2
 
 
-def test_consume_strict_macros_raises():
+def test_consume_undefined_macro_stored_unexpanded():
+    """Undefined macros are kept in the state for later validation."""
     state = IocshState()
-    with pytest.raises(DatabaseException):
-        consume_iocsh_command("someCmd $(UNDEFINED)", state, strict_macros=True)
+    consume_iocsh_command('someCmd("$(UNDEFINED)")', state)
+    assert len(state.other_commands) == 1
+    assert "$(UNDEFINED)" in state.other_commands[0].args[0]
 
 
 # --- load_iocsh_file tests ---
@@ -152,20 +150,23 @@ def test_load_initial_macros():
     assert state.macros["IOC"] == "testIOC"
 
 
-def test_load_strict_macros_on_undefined():
-    with pytest.raises(DatabaseException):
-        load_iocsh_file(DATA_DIR / "st_strict.cmd", strict_macros=True)
+def test_validate_macros_catches_undefined_in_command():
+    """validate_macros detects unexpanded macros in command arguments."""
+    state = load_iocsh_file(DATA_DIR / "st_strict.cmd")
+    result = validate_macros(state)
+    assert not result.is_valid
+    assert any("UNDEFINED_MACRO" in err.message for err in result.errors)
 
 
-def test_load_strict_macros_undefined_in_database():
-    """Macro used inside a .db file but not provided raises with strict_macros."""
+def test_validate_macros_catches_undefined_in_database():
+    """validate_macros detects unexpanded macros in loaded database fields."""
     state = IocshState()
     db_path = str(DATA_DIR / "test.db")
     # Only provide P and R, but PORT is also required in the .db file
-    with pytest.raises(DatabaseException):
-        consume_iocsh_command(
-            f'dbLoadRecords("{db_path}", "P=X:,R=Y:")', state, strict_macros=True
-        )
+    consume_iocsh_command(f'dbLoadRecords("{db_path}", "P=X:,R=Y:")', state)
+    result = validate_macros(state)
+    assert not result.is_valid
+    assert any("PORT" in err.message for err in result.errors)
 
 
 # --- IocshState tests ---

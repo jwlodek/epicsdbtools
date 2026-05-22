@@ -1,3 +1,3 @@
-from . import ioc_startup_linter, paramdefs
+from . import db_validator, ioc_startup_linter, paramdefs
 
-__all__ = ["paramdefs", "ioc_startup_linter"]
+__all__ = ["db_validator", "ioc_startup_linter", "paramdefs"]

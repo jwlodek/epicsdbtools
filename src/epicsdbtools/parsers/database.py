@@ -282,6 +282,7 @@ def load_database_file(
                         logger.error(msg)
                     else:
                         logger.debug(msg)
+                        lines.append(expanded)
                 else:
                     lines.append(expanded)
             else:

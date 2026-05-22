@@ -1,0 +1,6 @@
+# Database with invalid DTYP value
+record(ai, "Test:BadDtyp") {
+    field(DTYP, "nonExistentDriver")
+    field(INP, "@asyn(PORT1,0,1)TEMP")
+    field(PREC, "3")
+}

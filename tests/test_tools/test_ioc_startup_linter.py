@@ -32,7 +32,7 @@ def test_linter_valid_startup(make_args, capsys):
 def test_linter_undefined_macro_raises(make_args):
     """A startup script using an undefined macro should raise DatabaseException."""
     args = make_args(DATA_DIR / "st_strict.cmd")
-    with pytest.raises(DatabaseException, match="Undefined macros"):
+    with pytest.raises(DatabaseException, match="UNDEFINED_MACRO"):
         main(args)
 
 

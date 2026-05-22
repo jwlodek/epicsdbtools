@@ -1,0 +1,6 @@
+# Database with invalid field names
+record(ai, "Test:BadField") {
+    field(DTYP, "Soft Channel")
+    field(NONEXISTENT, "bad")
+    field(PREC, "3")
+}

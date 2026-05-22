@@ -1,0 +1,13 @@
+# Valid database - all fields and DTYP correct
+record(ai, "Test:Temperature") {
+    field(DTYP, "asynFloat64")
+    field(INP, "@asyn(PORT1,0,1)TEMP")
+    field(PREC, "3")
+    field(EGU, "degC")
+}
+
+record(ao, "Test:SetTemp") {
+    field(DTYP, "Soft Channel")
+    field(OUT, "Test:Temperature PP")
+    field(PREC, "1")
+}
