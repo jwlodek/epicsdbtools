@@ -1,0 +1,4 @@
+record(ai, "$(P)SubRecord") {
+    field(DTYP, "Soft Channel")
+    field(PREC, "2")
+}

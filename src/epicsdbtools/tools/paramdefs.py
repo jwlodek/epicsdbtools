@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Generate asyn parameter definitions from EPICS DB template.
+Generate asyn parameter definitions from EPICS DB templates
 """
 
 import argparse
 from dataclasses import dataclass
 from enum import Enum
+import os
 from pathlib import Path
 
 from .. import Database, LoadIncludesStrategy, load_database_file
@@ -70,14 +71,15 @@ def get_params_from_db(
 
 
 def generate_header_file_for_db(
-    params: list[ParamDef], output_path: Path, driver_name: str, base_name: str
+    params: list[ParamDef], output_path: Path, driver_name: str, base_name: str, use_hpp_extension: bool = False
 ):
-    header_file = output_path / f"{driver_name}ParamDefs.h"
+    extension = "hpp" if use_hpp_extension else "h"
+    header_file = output_path / f"{driver_name}ParamDefs.{extension}"
     logger.info(f"Generating header file {header_file} for {len(params)} params")
 
     with open(header_file, "w") as hf:
-        hf.write(f"#ifndef {base_name.upper()}_PARAM_DEFS_H\n")
-        hf.write(f"#define {base_name.upper()}_PARAM_DEFS_H\n\n")
+        hf.write(f"#ifndef {base_name.upper()}_PARAM_DEFS_{extension.upper()}\n")
+        hf.write(f"#define {base_name.upper()}_PARAM_DEFS_{extension.upper()}\n\n")
         hf.write("// This file is auto-generated. Do not edit directly.\n")
         hf.write(f"// Generated from {driver_name}.template\n\n")
 
@@ -104,8 +106,9 @@ def generate_header_file_for_db(
 
 
 def generate_cpp_file_for_db(
-    params: list[ParamDef], output_path: Path, driver_name: str
+    params: list[ParamDef], output_path: Path, driver_header_file: str
 ):
+    driver_name = os.path.splitext(driver_header_file)[0]
     cpp_file = output_path / f"{driver_name}ParamDefs.cpp"
     logger.info(f"Generating cpp file {cpp_file} for {len(params)} params")
 
@@ -144,6 +147,7 @@ def add_parser_args(parser: argparse.ArgumentParser):
         action="store_true",
         help="Use the prefix as the base name for generated files.",
     )
+    parser.add_argument("--use-hpp-extension", action="store_true", help="Use .hpp extension for header files.")
 
 
 def main(args: argparse.Namespace | None = None):
@@ -173,8 +177,17 @@ def main(args: argparse.Namespace | None = None):
             logger.info(
                 f"Param: {param.name}, Type: {param.type}, Record: {param.record_str}"
             )
-        generate_header_file_for_db(params, out_path, driver_name, base_name)
-        generate_cpp_file_for_db(params, out_path, driver_name)
+        generate_header_file_for_db(params, out_path, driver_name, base_name, use_hpp_extension=args.use_hpp_extension)
+
+
+        for extension in ["h", "hpp"]:
+            driver_header_file = out_path / f"{driver_name}.{extension}"
+            if driver_header_file.is_file():
+                break
+        else:
+            raise FileNotFoundError(f"Could not find header file for driver: {driver_name}")
+
+        generate_cpp_file_for_db(params, out_path, driver_header_file.stem)
 
 
 if __name__ == "__main__":

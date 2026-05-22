@@ -8,6 +8,7 @@ from epicsdbtools.parsers.iocsh import (
     IocshState,
     _expand_macros,
     _parse_command_line,
+    _resolve_file_path,
     consume_iocsh_command,
     load_iocsh_file,
 )
@@ -167,6 +168,105 @@ def test_validate_macros_catches_undefined_in_database():
     result = validate_macros(state)
     assert not result.is_valid
     assert any("PORT" in err.message for err in result.errors)
+
+
+# --- cwd and cd tests ---
+
+
+def test_load_sets_cwd_to_script_directory():
+    """Loading a startup script sets cwd to the script's directory."""
+    state = load_iocsh_file(DATA_DIR / "st.cmd")
+    assert state.cwd == DATA_DIR.resolve()
+
+
+def test_cd_changes_cwd():
+    """The cd command updates the working directory."""
+    state = IocshState(cwd=Path("/some/path"))
+    consume_iocsh_command('cd("/other/path")', state)
+    assert state.cwd == Path("/other/path")
+
+
+def test_cd_relative_resolves_from_cwd():
+    """A relative cd resolves against the current cwd."""
+    state = IocshState(cwd=DATA_DIR.resolve())
+    consume_iocsh_command('cd("subdir")', state)
+    assert state.cwd == (DATA_DIR / "subdir").resolve()
+
+
+def test_load_with_cd_finds_db():
+    """A startup script using cd can find db files in the new directory."""
+    state = load_iocsh_file(DATA_DIR / "st_with_cd.cmd")
+    assert len(state.databases) == 1
+    assert "Test:SubRecord" in state.databases[0]
+
+
+# --- EPICS_DB_INCLUDE_PATH tests ---
+
+
+def test_include_path_resolves_db():
+    """EPICS_DB_INCLUDE_PATH allows finding db files in listed directories."""
+    include_dir = str(DATA_DIR / "include_path_dir")
+    state = load_iocsh_file(
+        DATA_DIR / "st_with_include_path.cmd",
+        macros={"EPICS_DB_INCLUDE_PATH": include_dir},
+    )
+    assert len(state.databases) == 1
+    assert "Test:IncludeRecord" in state.databases[0]
+
+
+def test_include_path_multiple_dirs(tmp_path):
+    """EPICS_DB_INCLUDE_PATH supports colon-separated directories."""
+    # Create a db file in a temp directory
+    db_file = tmp_path / "found.db"
+    db_file.write_text('record(ai, "MyRec") {\n    field(DTYP, "Soft Channel")\n}\n')
+
+    state = IocshState(
+        cwd=tmp_path,
+        macros={"EPICS_DB_INCLUDE_PATH": f"/nonexistent:{tmp_path}"},
+    )
+    consume_iocsh_command('dbLoadRecords("found.db")', state)
+    assert len(state.databases) == 1
+    assert "MyRec" in state.databases[0]
+
+
+def test_include_path_not_found_raises():
+    """FileNotFoundError is raised if file is not in cwd or include path."""
+    state = IocshState(
+        cwd=DATA_DIR.resolve(),
+        macros={"EPICS_DB_INCLUDE_PATH": "/nonexistent"},
+    )
+    with pytest.raises(FileNotFoundError, match="Database file not found"):
+        consume_iocsh_command('dbLoadRecords("no_such_file.db")', state)
+
+
+# --- _resolve_file_path with custom macro ---
+
+
+def test_resolve_file_path_custom_macro(tmp_path):
+    """_resolve_file_path works with an arbitrary search path macro."""
+    db_file = tmp_path / "proto.db"
+    db_file.write_text("placeholder")
+
+    state = IocshState(
+        cwd=Path("/nonexistent"),
+        macros={"STREAM_PROTOCOL_PATH": str(tmp_path)},
+    )
+    resolved = _resolve_file_path(
+        Path("proto.db"), state, search_path_macro="STREAM_PROTOCOL_PATH"
+    )
+    assert resolved == db_file
+
+
+def test_resolve_file_path_no_macro_search():
+    """_resolve_file_path with search_path_macro=None skips macro search."""
+    state = IocshState(
+        cwd=DATA_DIR.resolve(),
+        macros={"EPICS_DB_INCLUDE_PATH": str(DATA_DIR / "include_path_dir")},
+    )
+    # "included.db" exists in include_path_dir but not in DATA_DIR
+    resolved = _resolve_file_path(Path("included.db"), state, search_path_macro=None)
+    # Should NOT find it since we disabled the search
+    assert not resolved.exists()
 
 
 # --- IocshState tests ---

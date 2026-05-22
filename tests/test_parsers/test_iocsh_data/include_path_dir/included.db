@@ -1,0 +1,4 @@
+record(ai, "$(P)IncludeRecord") {
+    field(DTYP, "Soft Channel")
+    field(PREC, "1")
+}

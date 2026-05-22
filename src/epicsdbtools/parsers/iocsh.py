@@ -44,12 +44,15 @@ class IocshState:
         The loaded database definition, if any.
     other_commands : list[IocshCommand]
         The list of other iocsh commands that are not specifically handled.
+    cwd : Path | None
+        The current working directory for resolving relative paths.
     """
 
     macros: dict[str, str] = field(default_factory=dict)
     databases: list[Database] = field(default_factory=list)
     dbd: DatabaseDefinition | None = None
     other_commands: list[IocshCommand] = field(default_factory=list)
+    cwd: Path | None = None
 
     def update(self, other: IocshState) -> None:
         self.macros.update(other.macros)
@@ -57,6 +60,8 @@ class IocshState:
         if other.dbd is not None:
             self.dbd = other.dbd
         self.other_commands.extend(other.other_commands)
+        if other.cwd is not None:
+            self.cwd = other.cwd
 
 
 def _expand_macros(text: str, macros: dict[str, str]) -> str:
@@ -166,6 +171,61 @@ def _split_args(arg_str: str) -> list[str]:
     return args
 
 
+def _resolve_file_path(
+    path: Path,
+    state: IocshState,
+    search_path_macro: str | None = "EPICS_DB_INCLUDE_PATH",
+) -> Path:
+    """Resolve a file path relative to the IOC state's cwd and an optional search path macro.
+
+    Parameters
+    ----------
+    path : Path
+        The file path to resolve.
+    state : IocshState
+        The current IOC state (provides cwd and macros).
+    search_path_macro : str | None
+        The name of a macro containing a colon-separated list of directories
+        to search when the file is not found directly. Set to None to disable.
+        Defaults to "EPICS_DB_INCLUDE_PATH".
+
+    Returns
+    -------
+    Path
+        The resolved path if found, otherwise the original path (possibly
+        made absolute relative to cwd).
+    """
+    if path.is_absolute():
+        if path.exists():
+            return path
+    else:
+        # Resolve relative to cwd
+        if state.cwd is not None:
+            candidate = state.cwd / path
+            if candidate.exists():
+                return candidate
+        # Check if it exists as-is (e.g. already relative to process cwd)
+        if path.exists():
+            return path
+
+    # Search the specified macro path
+    if search_path_macro is not None:
+        include_path = state.macros.get(search_path_macro, "")
+        if include_path:
+            for search_dir in include_path.split(":"):
+                search_dir = search_dir.strip()
+                if not search_dir:
+                    continue
+                candidate = Path(search_dir) / path
+                if candidate.exists():
+                    return candidate
+
+    # Return as absolute relative to cwd if possible
+    if not path.is_absolute() and state.cwd is not None:
+        return state.cwd / path
+    return path
+
+
 def consume_iocsh_command(
     line: str, current_state: IocshState
 ) -> None:
@@ -173,8 +233,9 @@ def consume_iocsh_command(
 
     Handles:
     - epicsEnvSet: sets environment/macro variables
+    - cd / chdir: changes the current working directory
     - dbLoadRecords / dbLoadTemplate: loads database files
-    - dbLoadTemplate: loads substitution files
+    - dbLoadDatabase: loads database definition files
     - < filename: sources another startup script (inline)
     - All other commands are stored in other_commands
 
@@ -202,10 +263,17 @@ def consume_iocsh_command(
             value = args[1]
             current_state.macros[key] = value
 
+    elif command in ("cd", "chdir"):
+        if len(args) >= 1:
+            new_dir = Path(args[0])
+            if not new_dir.is_absolute() and current_state.cwd is not None:
+                new_dir = current_state.cwd / new_dir
+            current_state.cwd = new_dir.resolve()
+
     elif command == "dbLoadDatabase":
         # dbLoadDatabase("file.dbd", "path", "substitutions")
         if len(args) >= 1:
-            dbd_path = Path(args[0])
+            dbd_path = _resolve_file_path(Path(args[0]), current_state)
             if not dbd_path.exists():
                 raise FileNotFoundError(
                     f"Database definition file not found: {dbd_path}"
@@ -215,7 +283,7 @@ def consume_iocsh_command(
     elif command == "dbLoadRecords":
         # dbLoadRecords("file.db", "macros")
         if len(args) >= 1:
-            db_path = Path(args[0])
+            db_path = _resolve_file_path(Path(args[0]), current_state)
             db_macros: dict[str, str] = {}
             if len(args) >= 2 and args[1]:
                 db_macros = macro_split(args[1])
@@ -234,16 +302,19 @@ def consume_iocsh_command(
     elif command == "dbLoadTemplate":
         # dbLoadTemplate("file.substitutions")
         if len(args) >= 1:
-            sub_path = Path(args[0])
+            sub_path = _resolve_file_path(Path(args[0]), current_state)
             if not sub_path.exists():
                 raise FileNotFoundError(f"Substitution file not found: {sub_path}")
             substitutions = load_substitution_file(sub_path)
             for sub in substitutions:
                 combined_macros = {**current_state.macros, **sub.macros}
-                if not sub.file.exists():
-                    raise FileNotFoundError(f"Template file not found: {sub.file}")
+                template_path = _resolve_file_path(sub.file, current_state)
+                if not template_path.exists():
+                    raise FileNotFoundError(
+                        f"Template file not found: {template_path}"
+                    )
                 db = load_database_file(
-                    sub.file,
+                    template_path,
                     macros=combined_macros,
                     load_includes_strategy=LoadIncludesStrategy.IGNORE,
                 )
@@ -275,12 +346,15 @@ def load_iocsh_file(
         The accumulated state after processing all commands.
     """
     state = IocshState(macros=dict(macros) if macros else {})
-    filepath = Path(filepath)
+    filepath = Path(filepath).resolve()
 
     if not filepath.exists():
         raise FileNotFoundError(f"IOC shell startup file not found: {filepath}")
 
     base_dir = filepath.parent
+    # Set the cwd to the directory containing the startup script
+    if state.cwd is None:
+        state.cwd = base_dir
 
     with open(filepath) as f:
         for raw_line in f:
@@ -306,7 +380,7 @@ def load_iocsh_file(
 
                 sourced_path = Path(sourced_file)
                 if not sourced_path.is_absolute():
-                    sourced_path = base_dir / sourced_path
+                    sourced_path = (state.cwd or base_dir) / sourced_path
 
                 if resolve_sources:
                     if not sourced_path.exists():
@@ -333,7 +407,7 @@ def load_iocsh_file(
                 if args:
                     script_path = Path(args[0])
                     if not script_path.is_absolute():
-                        script_path = base_dir / script_path
+                        script_path = (state.cwd or base_dir) / script_path
                     # Second arg may be macros for the sub-script
                     sub_macros = dict(state.macros)
                     if len(args) >= 2 and args[1]:

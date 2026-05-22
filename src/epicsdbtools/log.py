@@ -48,7 +48,7 @@ use_color = sys.stderr.isatty()
 fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 handler.setFormatter(ColorFormatter(fmt, use_color=use_color))
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)  # By default, hide debug/info messages
+logger.setLevel(logging.INFO)  # By default, hide debug/info messages
 logger.propagate = True
 
 
