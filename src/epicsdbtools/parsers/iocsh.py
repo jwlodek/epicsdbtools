@@ -86,6 +86,8 @@ class IocshState:
 def _expand_macros(text: str, macros: dict[str, str]) -> str:
     """Expand macros in a string.
 
+    Handles both $(MACRO) and ${MACRO} syntax.
+
     Parameters
     ----------
     text : str
@@ -99,6 +101,8 @@ def _expand_macros(text: str, macros: dict[str, str]) -> str:
         The text with all resolvable macros expanded. Unresolved macros
         are left as-is.
     """
+    # Normalize ${MACRO} to $(MACRO) for consistent handling
+    text = re.sub(r"\$\{([^}]+)\}", r"$(\1)", text)
     expanded, _ = macro_expand(text, macros)
     return expanded
 
