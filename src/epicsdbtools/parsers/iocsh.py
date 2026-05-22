@@ -368,7 +368,7 @@ def _find_ioc_binary(app_name: str, dbd_path: Path) -> Path | None:
 
     if candidate:
         logger.debug(f"Found IOC binary for '{app_name}': {candidate}")
-    return None
+    return candidate
 
 
 def consume_iocsh_command(
@@ -428,7 +428,6 @@ def consume_iocsh_command(
                 raise FileNotFoundError(
                     f"Database definition file not found: {dbd_path}"
                 )
-            logger.info(f"Loading database definition file: {dbd_path}")
             current_state.dbd = load_dbd_file(dbd_path)
             current_state.dbd_path = dbd_path.resolve()
 
