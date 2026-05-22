@@ -139,7 +139,7 @@ def validate_database(db: Database, dbd: DatabaseDefinition) -> ValidationResult
         dtyp_choices.setdefault(device.record_type, set()).add(device.choice_string)
 
     for record in db.values():
-        rtype_name = record.rtype.value
+        rtype_name = record.rtype_name
 
         # Check record type exists in dbd
         rtype_def = dbd.record_types.get(rtype_name)
@@ -295,12 +295,13 @@ BUILTIN_IOCSH_COMMANDS = frozenset(
 
 
 def validate_iocsh_commands(
-    state: IocshState, dbd: DatabaseDefinition | None = None
+    state: IocshState, dbd: DatabaseDefinition | None = None, strict: bool = False
 ) -> ValidationResult:
     """Validate iocsh commands against a database definition.
 
     Checks that non-built-in commands correspond to functions or registrars
-    declared in the database definition.
+    declared in the database definition. Also validates that commands are called
+    with the correct number of arguments when nargs information is available.
 
     Parameters
     ----------
@@ -309,6 +310,8 @@ def validate_iocsh_commands(
     dbd : DatabaseDefinition, optional
         The database definition to check commands against. If None, uses
         state.dbd if available.
+    strict : bool, optional
+        If True, unknown commands are reported as errors instead of warnings.
 
     Returns
     -------
@@ -335,16 +338,28 @@ def validate_iocsh_commands(
         if cmd.name.endswith("_registerRecordDeviceDriver"):
             continue
         if cmd.name not in registered_commands:
-            result.add_warning(
+            msg = (
                 f"Command '{cmd.name}' is not a built-in iocsh command and "
                 f"was not found in the database definition's registered "
                 f"functions or registrars"
             )
+            if strict:
+                result.add_error(msg)
+            else:
+                result.add_warning(msg)
+        elif cmd.name in state.registered_commands:
+            expected_nargs = state.registered_commands[cmd.name]
+            actual_nargs = len(cmd.args)
+            if actual_nargs > expected_nargs:
+                result.add_error(
+                    f"Command '{cmd.name}' called with {actual_nargs} argument(s), "
+                    f"but expects at most {expected_nargs}"
+                )
 
     return result
 
 
-def validate_ioc(state: IocshState) -> ValidationResult:
+def validate_ioc(state: IocshState, strict: bool = False) -> ValidationResult:
     """Perform full validation of an IOC state.
 
     Validates unexpanded macros, iocsh commands, and all loaded databases
@@ -354,6 +369,8 @@ def validate_ioc(state: IocshState) -> ValidationResult:
     ----------
     state : IocshState
         The fully parsed IOC shell state.
+    strict : bool, optional
+        If True, unknown commands are reported as errors instead of warnings.
 
     Returns
     -------
@@ -367,7 +384,7 @@ def validate_ioc(state: IocshState) -> ValidationResult:
     result.messages.extend(macro_result.messages)
 
     # Validate commands against dbd
-    cmd_result = validate_iocsh_commands(state)
+    cmd_result = validate_iocsh_commands(state, strict=strict)
     result.messages.extend(cmd_result.messages)
 
     # Validate databases against dbd

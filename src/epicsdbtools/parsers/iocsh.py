@@ -608,11 +608,13 @@ def consume_iocsh_command(
             if not db_path.exists():
                 raise FileNotFoundError(f"Database file not found: {db_path}")
             logger.info(f"Loading database file: {db_path} with macros: {db_macros}")
+            dbd_record_types = set(current_state.dbd.record_types.keys()) if current_state.dbd else None
             db = load_database_file(
                 db_path,
                 macros=combined_macros,
                 load_includes_strategy=LoadIncludesStrategy.LOAD_INTO_SELF,
                 allow_unmatched_macros=True,
+                valid_record_types=dbd_record_types,
             )
             current_state.databases.append(db)
 
@@ -626,16 +628,19 @@ def consume_iocsh_command(
             substitutions = load_substitution_file(sub_path)
             for sub in substitutions:
                 combined_macros = {**current_state.macros, **sub.macros}
-                template_path = _resolve_file_path(sub.file, current_state)
+                expanded_file = _expand_macros(str(sub.file), current_state.macros)
+                template_path = _resolve_file_path(Path(expanded_file), current_state)
                 if not template_path.exists():
                     raise FileNotFoundError(
                         f"Template file not found: {template_path}"
                     )
                 logger.debug(f"Loading template file: {template_path} with macros: {sub.macros}")
+                dbd_record_types = set(current_state.dbd.record_types.keys()) if current_state.dbd else None
                 db = load_database_file(
                     template_path,
                     macros=combined_macros,
                     load_includes_strategy=LoadIncludesStrategy.IGNORE,
+                    valid_record_types=dbd_record_types,
                 )
                 current_state.databases.append(db)
 

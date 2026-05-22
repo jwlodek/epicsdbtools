@@ -17,6 +17,11 @@ def add_parser_args(parser: argparse.ArgumentParser):
         action="store_true",
         help="Print the final parsed state of the IOC after validation.",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat unknown iocsh commands as errors instead of warnings.",
+    )
 
 
 def main(args: argparse.Namespace | None = None):
@@ -38,4 +43,4 @@ def main(args: argparse.Namespace | None = None):
     if args.print_final_state:
         print(iocsh_state)
 
-    print(validate_ioc(iocsh_state))
+    print(validate_ioc(iocsh_state, strict=args.strict))

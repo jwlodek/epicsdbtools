@@ -74,13 +74,23 @@ class DatabaseException(Exception):
 class Record(Generic[RecordTypeT]):
     def __init__(self, name: str, rtype: RecordTypeT | str):
         self.name = name
-        self.rtype = rtype if isinstance(rtype, RecordType) else RecordType(rtype)
+        if isinstance(rtype, RecordType):
+            self.rtype = rtype
+        else:
+            try:
+                self.rtype = RecordType(rtype)
+            except ValueError:
+                self.rtype = rtype
         self.infos: OrderedDict[str, str] = OrderedDict()
         self.fields: OrderedDict[str, str | int] = OrderedDict()
         self.aliases: list[str] = []
 
+    @property
+    def rtype_name(self) -> str:
+        return self.rtype.value if isinstance(self.rtype, RecordType) else self.rtype
+
     def __repr__(self) -> str:
-        repr = f'record ({self.rtype.value}, "{self.name}")' + " {\n"
+        repr = f'record ({self.rtype_name}, "{self.name}")' + " {\n"
         for field, value in self.fields.items():
             repr += f'    field({field:4}, "{value}")\n'
         for field, value in self.infos.items():
@@ -198,9 +208,12 @@ def parse_pair(src: Iterator[str]) -> tuple[str | None, str | None]:
     return field, value
 
 
-def parse_record(src: Iterator[str]) -> tuple[Record, int]:
+def parse_record(
+    src: Iterator[str], valid_record_types: set[str] | None = None
+) -> tuple[Record, int]:
     """
     :param iter src: token generator
+    :param valid_record_types: optional set of additional valid record type names (e.g. from dbd)
     :returns: tuple of (record, invalid_field_count)
     """
 
@@ -212,8 +225,13 @@ def parse_record(src: Iterator[str]) -> tuple[Record, int]:
 
     try:
         record_type = RecordType[rtype.upper()]
-    except KeyError as err:
-        raise DatabaseException(f"Invalid record type '{rtype}' for '{name}'") from err
+    except KeyError:
+        if valid_record_types and rtype in valid_record_types:
+            record_type = rtype
+        else:
+            raise DatabaseException(
+                f"Invalid record type '{rtype}' for '{name}'"
+            )
 
     record = Record(name=name, rtype=record_type)
     invalid_fields = 0
@@ -264,6 +282,7 @@ def load_database_file(
     search_path: set[Path] | None = None,
     load_includes_strategy: LoadIncludesStrategy = LoadIncludesStrategy.LOAD_INTO_SELF,
     allow_unmatched_macros: bool = True,
+    valid_record_types: set[str] | None = None,
 ) -> Database:
     """
     :param str filename: EPICS database filename
@@ -312,7 +331,7 @@ def load_database_file(
             break
 
         if token == "record" or token == "grecord":
-            record, invalid_count = parse_record(src)
+            record, invalid_count = parse_record(src, valid_record_types)
             total_invalid_fields += invalid_count
             database.add_record(record)
         elif token == "alias":
@@ -337,6 +356,7 @@ def load_database_file(
                     extended_search_path,
                     load_includes_strategy,
                     allow_unmatched_macros,
+                    valid_record_types,
                 )
                 if load_includes_strategy == LoadIncludesStrategy.LOAD_INTO_SELF:
                     logger.debug(
