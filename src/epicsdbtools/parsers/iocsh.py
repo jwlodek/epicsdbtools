@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import platform
+import re
+import struct
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,7 +60,7 @@ class IocshState:
     dbd: DatabaseDefinition | None = None
     other_commands: list[IocshCommand] = field(default_factory=list)
     cwd: Path | None = None
-    registered_commands: set[str] = field(default_factory=set)
+    registered_commands: dict[str, int] = field(default_factory=dict)
     dbd_path: Path | None = None
 
     def update(self, other: IocshState) -> None:
@@ -70,8 +72,6 @@ class IocshState:
             self.dbd_path = other.dbd_path
         self.other_commands.extend(other.other_commands)
         self.registered_commands.update(other.registered_commands)
-        if other.cwd is not None:
-            self.cwd = other.cwd
 
     def __str__(self) -> str:
         return (
@@ -259,26 +259,23 @@ def _get_arch() -> str:
     return arch_map.get((system, machine), f"{system}-{machine}")
 
 
-def _discover_commands_from_binary(binary_path: Path) -> set[str]:
-    """Extract registered iocsh command names from an IOC binary and its libraries.
+_FUNCDEF_SYMBOL_RE = re.compile(r"^([0-9a-f]+)\s+[dDrRbB]\s+(.+(?:FuncDef|Def))$")
 
-    Finds command names by looking for strings ending in 'FuncDef' or 'Def'
-    that also have a corresponding bare command name string in the same file.
+
+def _get_linked_libraries(binary_path: Path) -> list[Path]:
+    """Get paths to all shared libraries linked by a binary via ldd.
 
     Parameters
     ----------
     binary_path : Path
-        Path to the IOC binary executable.
+        Path to the ELF binary or shared library.
 
     Returns
     -------
-    set[str]
-        Set of discovered iocsh command names.
+    list[Path]
+        List of resolved library paths.
     """
-    commands: set[str] = set()
-
-    # Get the binary and all its linked shared libraries
-    files_to_scan = [binary_path]
+    libs: list[Path] = []
     try:
         result = subprocess.run(
             ["ldd", str(binary_path)],
@@ -288,39 +285,203 @@ def _discover_commands_from_binary(binary_path: Path) -> set[str]:
         )
         if result.returncode == 0:
             for line in result.stdout.splitlines():
-                # Parse ldd output: libname.so => /path/to/lib.so (0x...)
                 parts = line.split("=>")
                 if len(parts) == 2:
                     lib_path = parts[1].strip().split("(")[0].strip()
                     if lib_path and Path(lib_path).exists():
-                        files_to_scan.append(Path(lib_path))
+                        libs.append(Path(lib_path))
     except (subprocess.TimeoutExpired, OSError) as e:
         logger.debug(f"Failed to run ldd on {binary_path}: {e}")
+    return libs
+
+
+def _extract_commands_from_elf(elf_path: Path) -> dict[str, int]:
+    """Extract iocsh command names and argument counts from an ELF file.
+
+    Reads iocshFuncDef structs directly from the ELF binary by:
+    1. Finding symbols ending in 'FuncDef' or 'Def' via nm
+    2. Parsing ELF program headers for vaddr-to-file-offset mapping
+    3. Parsing relocations to resolve pointer fields
+    4. Reading the command name string and nargs from each struct
+
+    Parameters
+    ----------
+    elf_path : Path
+        Path to a 64-bit little-endian ELF file (binary or shared library).
+
+    Returns
+    -------
+    dict[str, int]
+        Mapping of command name to number of arguments.
+    """
+    commands: dict[str, int] = {}
+
+    # Get FuncDef/Def data symbol addresses from nm
+    try:
+        result = subprocess.run(
+            ["nm", str(elf_path)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return commands
+    except (subprocess.TimeoutExpired, OSError):
+        return commands
+
+    funcdef_symbols: list[tuple[int, str]] = []
+    for line in result.stdout.splitlines():
+        m = _FUNCDEF_SYMBOL_RE.match(line)
+        if m:
+            funcdef_symbols.append((int(m.group(1), 16), m.group(2)))
+
+    if not funcdef_symbols:
+        return commands
+
+    try:
+        with open(elf_path, "rb") as f:
+            # Validate ELF magic and format
+            f.seek(0)
+            magic = f.read(4)
+            if magic != b"\x7fELF":
+                return commands
+            ei_class = struct.unpack("B", f.read(1))[0]
+            if ei_class != 2:  # 64-bit only
+                return commands
+            ei_data = struct.unpack("B", f.read(1))[0]
+            if ei_data != 1:  # little-endian only
+                return commands
+
+            # Parse program headers for vaddr <-> file offset mapping
+            f.seek(32)
+            e_phoff = struct.unpack("<Q", f.read(8))[0]
+            f.seek(54)
+            e_phentsize = struct.unpack("<H", f.read(2))[0]
+            e_phnum = struct.unpack("<H", f.read(2))[0]
+
+            segments: list[tuple[int, int, int]] = []  # (p_offset, p_vaddr, p_filesz)
+            for i in range(e_phnum):
+                f.seek(e_phoff + i * e_phentsize)
+                p_type = struct.unpack("<I", f.read(4))[0]
+                if p_type == 1:  # PT_LOAD
+                    f.seek(e_phoff + i * e_phentsize + 8)
+                    p_offset = struct.unpack("<Q", f.read(8))[0]
+                    p_vaddr = struct.unpack("<Q", f.read(8))[0]
+                    f.read(8)  # p_paddr
+                    p_filesz = struct.unpack("<Q", f.read(8))[0]
+                    segments.append((p_offset, p_vaddr, p_filesz))
+
+            def vaddr_to_offset(vaddr: int) -> int | None:
+                for p_off, p_va, p_fsz in segments:
+                    if p_va <= vaddr < p_va + p_fsz:
+                        return vaddr - p_va + p_off
+                return None
+
+            def read_string_at(vaddr: int) -> str | None:
+                off = vaddr_to_offset(vaddr)
+                if off is None:
+                    return None
+                f.seek(off)
+                b = b""
+                while len(b) < 256:
+                    c = f.read(1)
+                    if c == b"\x00" or not c:
+                        break
+                    b += c
+                try:
+                    return b.decode("ascii")
+                except UnicodeDecodeError:
+                    return None
+
+            # Parse section headers to find .rela.dyn (relocations)
+            f.seek(40)
+            e_shoff = struct.unpack("<Q", f.read(8))[0]
+            f.seek(58)
+            e_shentsize = struct.unpack("<H", f.read(2))[0]
+            e_shnum = struct.unpack("<H", f.read(2))[0]
+
+            # Build relocation map: vaddr -> resolved address
+            # We only need R_X86_64_RELATIVE (type 8) for string pointers
+            reloc_map: dict[int, int] = {}
+            for i in range(e_shnum):
+                f.seek(e_shoff + i * e_shentsize)
+                f.read(4)  # sh_name
+                sh_type = struct.unpack("<I", f.read(4))[0]
+                if sh_type != 4:  # SHT_RELA
+                    continue
+                f.read(16)  # sh_flags + sh_addr
+                sh_offset = struct.unpack("<Q", f.read(8))[0]
+                sh_size = struct.unpack("<Q", f.read(8))[0]
+
+                num_entries = sh_size // 24  # sizeof(Elf64_Rela)
+                for j in range(num_entries):
+                    f.seek(sh_offset + j * 24)
+                    r_offset = struct.unpack("<Q", f.read(8))[0]
+                    r_info = struct.unpack("<Q", f.read(8))[0]
+                    r_addend = struct.unpack("<q", f.read(8))[0]
+                    r_type = r_info & 0xFFFFFFFF
+                    if r_type == 8:  # R_X86_64_RELATIVE: base + addend
+                        reloc_map[r_offset] = r_addend
+
+            def read_ptr(vaddr: int) -> int | None:
+                """Read a pointer, using relocation if available."""
+                if vaddr in reloc_map:
+                    return reloc_map[vaddr]
+                off = vaddr_to_offset(vaddr)
+                if off is None:
+                    return None
+                f.seek(off)
+                return struct.unpack("<Q", f.read(8))[0]
+
+            # Read each FuncDef struct:
+            #   offset 0: const char *name  (8 bytes, pointer)
+            #   offset 8: int nargs         (4 bytes, plain int)
+            for sym_vaddr, _sym_name in funcdef_symbols:
+                name_ptr = read_ptr(sym_vaddr)
+                if name_ptr is None or name_ptr == 0:
+                    continue
+                cmd_name = read_string_at(name_ptr)
+                if not cmd_name or not cmd_name.isprintable():
+                    continue
+
+                nargs_off = vaddr_to_offset(sym_vaddr + 8)
+                if nargs_off is None:
+                    continue
+                f.seek(nargs_off)
+                nargs = struct.unpack("<i", f.read(4))[0]
+                if nargs < 0 or nargs > 20:
+                    continue
+
+                commands[cmd_name] = nargs
+
+    except OSError as e:
+        logger.debug(f"Failed to read ELF file {elf_path}: {e}")
+
+    return commands
+
+
+def _discover_commands_from_binary(binary_path: Path) -> dict[str, int]:
+    """Extract registered iocsh command names from an IOC binary and its libraries.
+
+    Scans the binary and all its linked shared libraries by reading iocshFuncDef
+    structs directly from the ELF data.
+
+    Parameters
+    ----------
+    binary_path : Path
+        Path to the IOC binary executable.
+
+    Returns
+    -------
+    dict[str, int]
+        Mapping of command name to number of arguments.
+    """
+    commands: dict[str, int] = {}
+
+    files_to_scan = [binary_path] + _get_linked_libraries(binary_path)
 
     for file_path in files_to_scan:
-        try:
-            result = subprocess.run(
-                ["strings", str(file_path)],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode != 0:
-                continue
-        except (subprocess.TimeoutExpired, OSError):
-            continue
-
-        all_strings = set(result.stdout.splitlines())
-
-        for s in all_strings:
-            if s.endswith("FuncDef"):
-                cmd_name = s[: -len("FuncDef")]
-                if cmd_name and cmd_name in all_strings:
-                    commands.add(cmd_name)
-            elif s.endswith("Def") and not s.endswith("FuncDef"):
-                cmd_name = s[: -len("Def")]
-                if cmd_name and cmd_name in all_strings:
-                    commands.add(cmd_name)
+        commands.update(_extract_commands_from_elf(file_path))
 
     return commands
 
@@ -407,7 +568,7 @@ def consume_iocsh_command(
             key = args[0]
             value = args[1]
             current_state.macros[key] = value
-            logger.debug(f"Set macro: {key} = {value}")
+            logger.info(f"Set macro: {key} = {value}")
         else:
             logger.error(f"Invalid epicsEnvSet command, expected at least 2 args: {line}")
 
@@ -484,8 +645,8 @@ def consume_iocsh_command(
                         f"Scanning IOC binary '{binary_path}' for registered commands"
                     )
                     discovered_iocsh_commands = _discover_commands_from_binary(binary_path)
-                    for cmd in discovered_iocsh_commands:
-                        logger.debug(f"Discovered iocsh command from binary: {cmd}")
+                    for cmd, nargs in discovered_iocsh_commands.items():
+                        logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
                     current_state.registered_commands.update(discovered_iocsh_commands)
                 else:
                     logger.warning(
@@ -503,6 +664,7 @@ def load_iocsh_file(
     filepath: Path,
     macros: dict[str, str] | None = None,
     resolve_sources: bool = True,
+    binary_path: Path | None = None,
 ) -> IocshState:
     """Parse an IOC shell startup file and return the resulting state.
 
@@ -514,6 +676,10 @@ def load_iocsh_file(
         Initial macros/environment variables to seed the state with.
     resolve_sources : bool
         If True, recursively parse sourced scripts (< file or iocshLoad).
+    binary_path : Path, optional
+        Explicit path to the IOC binary for command discovery. If not provided,
+        the binary is auto-detected from a shebang line (e.g. #!/path/to/binary)
+        or from the *_registerRecordDeviceDriver command.
 
     Returns
     -------
@@ -532,9 +698,45 @@ def load_iocsh_file(
     if state.cwd is None:
         state.cwd = base_dir
 
+    # If binary_path provided explicitly, scan it immediately
+    if binary_path is not None:
+        binary_path = Path(binary_path)
+        if binary_path.exists():
+            logger.info(f"Scanning user-specified IOC binary: {binary_path}")
+            discovered = _discover_commands_from_binary(binary_path)
+            for cmd, nargs in discovered.items():
+                logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
+            state.registered_commands.update(discovered)
+        else:
+            logger.warning(f"Specified binary path does not exist: {binary_path}")
+
     with open(filepath) as f:
+        first_line = True
         for raw_line in f:
             line = raw_line.strip()
+
+            # Check for shebang on the first line
+            if first_line:
+                first_line = False
+                if line.startswith("#!") and binary_path is None:
+                    shebang_binary = Path(line[2:].strip())
+                    if not shebang_binary.is_absolute():
+                        shebang_binary = base_dir / shebang_binary
+                    if shebang_binary.exists():
+                        logger.info(
+                            f"Detected IOC binary from shebang: {shebang_binary}"
+                        )
+                        discovered = _discover_commands_from_binary(shebang_binary)
+                        for cmd, nargs in discovered.items():
+                            logger.info(
+                                f"Discovered iocsh command from binary: {cmd}({nargs} args)"
+                            )
+                        state.registered_commands.update(discovered)
+                    else:
+                        logger.debug(
+                            f"Shebang binary not found: {shebang_binary}"
+                        )
+                    continue
 
             # Skip empty lines and comments
             if not line or line.startswith("#"):

@@ -327,7 +327,7 @@ def validate_iocsh_commands(
     # Collect all registered command names from dbd
     registered_commands = set(dbd.functions) | set(dbd.registrars)
     # Include commands discovered from the IOC binary
-    registered_commands |= state.registered_commands
+    registered_commands |= set(state.registered_commands.keys())
 
     for cmd in state.other_commands:
         if cmd.name in BUILTIN_IOCSH_COMMANDS:
