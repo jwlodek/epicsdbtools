@@ -1,0 +1,83 @@
+menu(menuScan) {
+    choice(menuScanPassive, "Passive")
+    choice(menuScanEvent, "Event")
+    choice(menuScanI_O_Intr, "I/O Intr")
+    choice(menuScan10second, "10 second")
+    choice(menuScan5second, "5 second")
+    choice(menuScan2second, "2 second")
+    choice(menuScan1second, "1 second")
+}
+
+menu(menuAlarmSevr) {
+    choice(menuAlarmSevrNO_ALARM, "NO_ALARM")
+    choice(menuAlarmSevrMINOR, "MINOR")
+    choice(menuAlarmSevrMAJOR, "MAJOR")
+    choice(menuAlarmSevrINVALID, "INVALID")
+}
+
+recordtype(ai) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(DESC, DBF_STRING) {
+        prompt("Descriptor")
+        promptgroup("10 - Common")
+        size(41)
+    }
+    field(VAL, DBF_DOUBLE) {
+        prompt("Current EGU Value")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(INP, DBF_INLINK) {
+        prompt("Input Specification")
+        promptgroup("40 - Input")
+    }
+    field(PREC, DBF_SHORT) {
+        prompt("Display Precision")
+        promptgroup("80 - Display")
+        interest(1)
+    }
+}
+
+recordtype(ao) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(VAL, DBF_DOUBLE) {
+        prompt("Desired Output")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(OUT, DBF_OUTLINK) {
+        prompt("Output Specification")
+        promptgroup("50 - Output")
+    }
+}
+
+device(ai, CONSTANT, devAiSoft, "Soft Channel")
+device(ai, INST_IO, devAiGeneralTime, "General Time")
+device(ao, CONSTANT, devAoSoft, "Soft Channel")
+
+driver(drvAsyn)
+
+registrar(asSub)
+registrar(dbndInitialize)
+
+function(mySubProcess)
+
+variable(asCaDebug, int)
+variable(dbRecordsOnceOnly)
+
+breaktable(typeJdegC) {
+    0.000000 0.0
+    365.023224 67.0
+    1000.046448 178.0
+    3007.255859 524.0
+}
+
+include "menuGlobal.dbd"

@@ -6,6 +6,17 @@ from .database import (
     RecordTypeT,
     load_database_file,
 )
+from .database_definition import (
+    BreakTable,
+    DatabaseDefinition,
+    DeviceSupport,
+    FieldDefinition,
+    Menu,
+    MenuChoice,
+    RecordTypeDefinition,
+    load_dbd_file,
+    parse_dbd,
+)
 from .iocsh import (
     IocshCommand,
     IocshState,
@@ -15,16 +26,25 @@ from .iocsh import (
 from .substitution import Substitution, load_substitution_file
 
 __all__ = [
+    "BreakTable",
     "Database",
-    "Record",
-    "Substitution",
-    "load_database_file",
-    "LoadIncludesStrategy",
-    "load_substitution_file",
-    "RecordType",
-    "RecordTypeT",
+    "DatabaseDefinition",
+    "DeviceSupport",
+    "FieldDefinition",
     "IocshCommand",
     "IocshState",
+    "LoadIncludesStrategy",
+    "Menu",
+    "MenuChoice",
+    "Record",
+    "RecordType",
+    "RecordTypeDefinition",
+    "RecordTypeT",
+    "Substitution",
     "consume_iocsh_command",
+    "load_database_file",
+    "load_dbd_file",
     "load_iocsh_file",
+    "load_substitution_file",
+    "parse_dbd",
 ]
