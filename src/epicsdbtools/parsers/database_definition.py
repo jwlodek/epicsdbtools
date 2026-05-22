@@ -369,6 +369,7 @@ def load_dbd_file(
     :param search_path: Optional set of directories to search for the file
     :return: Parsed DatabaseDefinition
     """
+    logger.info(f"Loading database definition file: {filename}")
     if isinstance(filename, str):
         filename = Path(filename)
 

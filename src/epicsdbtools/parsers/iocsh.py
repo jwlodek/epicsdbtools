@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..macro import macro_expand, macro_split
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("epicsdbtools")
 from .database import (
     Database,
     DatabaseException,
@@ -349,19 +349,25 @@ def _find_ioc_binary(app_name: str, dbd_path: Path) -> Path | None:
     if not bin_dir.is_dir():
         return None
 
+    logger.debug(f"Looking for IOC binary '{app_name}' in {bin_dir} for dbd at {dbd_path}")
+
     # Try the current platform architecture first
+    candidate = None
     arch = _get_arch()
     candidate = bin_dir / arch / app_name
-    if candidate.exists():
-        return candidate
 
     # Fall back to searching any arch directory
-    for arch_dir in bin_dir.iterdir():
-        if arch_dir.is_dir():
-            candidate = arch_dir / app_name
-            if candidate.exists():
-                return candidate
+    if not candidate.exists():
+        candidate = None
+        for arch_dir in bin_dir.iterdir():
+            if arch_dir.is_dir():
+                candidate = arch_dir / app_name
+                if candidate.exists():
+                    break
+                candidate = None
 
+    if candidate:
+        logger.debug(f"Found IOC binary for '{app_name}': {candidate}")
     return None
 
 
@@ -401,6 +407,9 @@ def consume_iocsh_command(
             key = args[0]
             value = args[1]
             current_state.macros[key] = value
+            logger.debug(f"Set macro: {key} = {value}")
+        else:
+            logger.error(f"Invalid epicsEnvSet command, expected at least 2 args: {line}")
 
     elif command in ("cd", "chdir"):
         if len(args) >= 1:
@@ -408,15 +417,18 @@ def consume_iocsh_command(
             if not new_dir.is_absolute() and current_state.cwd is not None:
                 new_dir = current_state.cwd / new_dir
             current_state.cwd = new_dir.resolve()
+            logger.info(f"Changed directory to: {current_state.cwd}")
 
     elif command == "dbLoadDatabase":
         # dbLoadDatabase("file.dbd", "path", "substitutions")
         if len(args) >= 1:
             dbd_path = _resolve_file_path(Path(args[0]), current_state)
             if not dbd_path.exists():
+                logger.error(f"Database definition file not found: {dbd_path}")
                 raise FileNotFoundError(
                     f"Database definition file not found: {dbd_path}"
                 )
+            logger.info(f"Loading database definition file: {dbd_path}")
             current_state.dbd = load_dbd_file(dbd_path)
             current_state.dbd_path = dbd_path.resolve()
 
@@ -431,6 +443,7 @@ def consume_iocsh_command(
             combined_macros = {**current_state.macros, **db_macros}
             if not db_path.exists():
                 raise FileNotFoundError(f"Database file not found: {db_path}")
+            logger.info(f"Loading database file: {db_path} with macros: {db_macros}")
             db = load_database_file(
                 db_path,
                 macros=combined_macros,
@@ -445,6 +458,7 @@ def consume_iocsh_command(
             sub_path = _resolve_file_path(Path(args[0]), current_state)
             if not sub_path.exists():
                 raise FileNotFoundError(f"Substitution file not found: {sub_path}")
+            logger.info(f"Loading substitution file: {sub_path}")
             substitutions = load_substitution_file(sub_path)
             for sub in substitutions:
                 combined_macros = {**current_state.macros, **sub.macros}
@@ -453,6 +467,7 @@ def consume_iocsh_command(
                     raise FileNotFoundError(
                         f"Template file not found: {template_path}"
                     )
+                logger.debug(f"Loading template file: {template_path} with macros: {sub.macros}")
                 db = load_database_file(
                     template_path,
                     macros=combined_macros,
@@ -469,9 +484,10 @@ def consume_iocsh_command(
                     logger.info(
                         f"Scanning IOC binary '{binary_path}' for registered commands"
                     )
-                    current_state.registered_commands.update(
-                        _discover_commands_from_binary(binary_path)
-                    )
+                    discovered_iocsh_commands = _discover_commands_from_binary(binary_path)
+                    for cmd in discovered_iocsh_commands:
+                        logger.debug(f"Discovered iocsh command from binary: {cmd}")
+                    current_state.registered_commands.update(discovered_iocsh_commands)
                 else:
                     logger.warning(
                         f"Could not find IOC binary for '{app_name}'; "
@@ -505,6 +521,7 @@ def load_iocsh_file(
     IocshState
         The accumulated state after processing all commands.
     """
+    logger.info(f"Loading IOC shell file: {filepath}")
     state = IocshState(macros=dict(macros) if macros else {})
     filepath = Path(filepath).resolve()
 
@@ -527,6 +544,10 @@ def load_iocsh_file(
             # Expand macros in the line
             expanded_line = _expand_macros(line, state.macros)
 
+            logger.debug(f"Processing line: {line}")
+            if line != expanded_line:
+                logger.debug(f"Expanded to: {expanded_line}")
+
             # Handle source redirect: < filename
             if expanded_line.startswith("<"):
                 sourced_file = expanded_line[1:].strip()
@@ -547,6 +568,7 @@ def load_iocsh_file(
                         raise FileNotFoundError(
                             f"Sourced script not found: {sourced_path}"
                         )
+                    logger.info(f"Sourcing script: {sourced_path}")
                     child_state = load_iocsh_file(
                         sourced_path,
                         macros=state.macros,
