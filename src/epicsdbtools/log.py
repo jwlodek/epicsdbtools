@@ -1,8 +1,6 @@
 import logging
 import sys
 
-logging.basicConfig()
-
 logger: logging.Logger = logging.getLogger("epicsdbtools")
 
 

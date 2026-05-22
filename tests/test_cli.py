@@ -67,7 +67,7 @@ def test_get_cli_modules_import_failure(monkeypatch, caplog):
         raise ImportError(f"Mock import error importing {package}{name}")
 
     monkeypatch.setattr("importlib.import_module", mock_import_module)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, logger="epicsdbtools"):
         cli_modules = get_cli_modules()
     assert cli_modules == {}
     assert "Failed to import CLI module for command" in caplog.text
@@ -79,7 +79,7 @@ def test_get_cli_modules_not_valid_protocol(monkeypatch, caplog):
         return NotACLIModuleProtocol()
 
     monkeypatch.setattr("importlib.import_module", mock_import_module)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger="epicsdbtools"):
         cli_modules = get_cli_modules()
     assert cli_modules == {}
     assert "does not conform to CLIModuleProtocol" in caplog.text
@@ -116,3 +116,4 @@ def test_create_cli_module_subparsers_no_parser_args(caplog):
     assert isinstance(subparser, argparse.ArgumentParser)
     assert len(subparser._actions) == 2  # Help and debug actions
     assert "No add_parser_args function found for command" in caplog.text
+
