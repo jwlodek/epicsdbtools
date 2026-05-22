@@ -198,9 +198,10 @@ def parse_pair(src: Iterator[str]) -> tuple[str | None, str | None]:
     return field, value
 
 
-def parse_record(src: Iterator[str]) -> Record:
+def parse_record(src: Iterator[str]) -> tuple[Record, int]:
     """
     :param iter src: token generator
+    :returns: tuple of (record, invalid_field_count)
     """
 
     rtype, name = parse_pair(src)
@@ -215,6 +216,7 @@ def parse_record(src: Iterator[str]) -> Record:
         raise DatabaseException(f"Invalid record type '{rtype}' for '{name}'") from err
 
     record = Record(name=name, rtype=record_type)
+    invalid_fields = 0
 
     token = next(src)
     while True:
@@ -222,18 +224,19 @@ def parse_record(src: Iterator[str]) -> Record:
             break
         elif token in ("field", "info", "alias"):
             key, value = parse_pair(src)
-            if token in ("field", "info") and key and value:
+            if token in ("field", "info") and key and value is not None:
                 logger.debug(f"Setting {token} '{key}' for record '{record.name}'")
                 getattr(record, f"{token}s")[key] = value
             elif token == "alias" and key:
                 record.aliases.append(key)
             else:
-                logger.warning(f"Invalid {token} definition for record '{record.name}'")
+                logger.debug(f"Invalid {token} definition for record '{record.name}'")
+                invalid_fields += 1
 
         token = next(src)
 
     logger.debug(f"Parsed record: '{record.name}'")
-    return record
+    return record, invalid_fields
 
 
 def find_database_file(
@@ -301,6 +304,7 @@ def load_database_file(
 
     # parse record instances
     src = iter(Tokenizer(StringIO("".join(lines)), str(filename)))
+    total_invalid_fields = 0
     while True:
         try:
             token = next(src)
@@ -308,7 +312,9 @@ def load_database_file(
             break
 
         if token == "record" or token == "grecord":
-            database.add_record(parse_record(src))
+            record, invalid_count = parse_record(src)
+            total_invalid_fields += invalid_count
+            database.add_record(record)
         elif token == "alias":
             record_name, alias_name = parse_pair(src)
             if record_name is None or alias_name is None:
@@ -346,6 +352,11 @@ def load_database_file(
             raise DatabaseException(
                 "Invalid token encountered while parsing database file"
             )
+
+    if total_invalid_fields > 0:
+        logger.error(
+            f"{filename}: {total_invalid_fields} invalid field definition(s) found"
+        )
 
     logger.info(f"Loaded {len(database)} unique records from '{filename}'")
 

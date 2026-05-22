@@ -80,13 +80,14 @@ def test_parse_record(tokenizer_factory):
     alias("testAlias2")
 }
 """
-    record = parse_record(iter(tokenizer_factory(record_str)))
+    record, invalid_count = parse_record(iter(tokenizer_factory(record_str)))
     assert record.name == "testRecord"
     assert record.rtype == RecordType.AI
     assert record.fields["VAL"] == "42"
     assert record.fields["DESC"] == "Test record"
     assert record.infos["TEST"] == "testInfo"
     assert record.aliases == ["testAlias1", "testAlias2"]
+    assert invalid_count == 0
 
 
 def test_parse_record_invalid_type(tokenizer_factory):

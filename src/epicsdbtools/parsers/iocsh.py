@@ -637,25 +637,33 @@ def consume_iocsh_command(
 
     else:
         if command.endswith("_registerRecordDeviceDriver"):
-            app_name = command[: -len("_registerRecordDeviceDriver")]
-            if current_state.dbd_path is not None:
-                binary_path = _find_ioc_binary(app_name, current_state.dbd_path)
-                if binary_path is not None:
-                    logger.info(
-                        f"Scanning IOC binary '{binary_path}' for registered commands"
-                    )
-                    discovered_iocsh_commands = _discover_commands_from_binary(binary_path)
-                    for cmd, nargs in discovered_iocsh_commands.items():
-                        logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
-                    current_state.registered_commands.update(discovered_iocsh_commands)
+            # Only scan for commands if not already discovered (via user-supplied
+            # binary_path or shebang detection)
+            if not current_state.registered_commands:
+                app_name = command[: -len("_registerRecordDeviceDriver")]
+                if current_state.dbd_path is not None:
+                    binary_path = _find_ioc_binary(app_name, current_state.dbd_path)
+                    if binary_path is not None:
+                        logger.info(
+                            f"Scanning IOC binary '{binary_path}' for registered commands"
+                        )
+                        discovered_iocsh_commands = _discover_commands_from_binary(binary_path)
+                        for cmd, nargs in discovered_iocsh_commands.items():
+                            logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
+                        current_state.registered_commands.update(discovered_iocsh_commands)
+                    else:
+                        logger.warning(
+                            f"Could not find IOC binary for '{app_name}'; "
+                            f"commands from registrars will not be validated"
+                        )
                 else:
                     logger.warning(
-                        f"Could not find IOC binary for '{app_name}'; "
-                        f"commands from registrars will not be validated"
+                        f"No dbd path available to locate IOC binary for '{app_name}'"
                     )
-            else:
+            elif command not in current_state.registered_commands:
                 logger.warning(
-                    f"No dbd path available to locate IOC binary for '{app_name}'"
+                    f"Command '{command}' not found in the discovered binary commands; "
+                    f"the specified binary may not match this IOC"
                 )
         current_state.other_commands.append(IocshCommand(name=command, args=args))
 
