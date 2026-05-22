@@ -57,7 +57,7 @@ def test_cli_module_protocol(input, is_cli_module_protocol):
 
 def test_get_cli_modules():
     cli_modules = get_cli_modules()
-    for command in cli_tools:
+    for command in [tool.replace("_", "-") for tool in cli_tools]:
         assert command in cli_modules
         assert isinstance(cli_modules[command], CLIModuleProtocol)
 
@@ -105,15 +105,14 @@ def test_create_cli_module_subparsers():
 
 
 def test_create_cli_module_subparsers_no_parser_args(caplog):
-
     parser = argparse.ArgumentParser()
     cli_modules = {"mod": TestCLIModuleProtocolNoArgs()}
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="epicsdbtools"):
         create_cli_module_subparsers(parser, cli_modules)  # type: ignore
     assert len(parser._actions) == 2  # Help action and subparsers action
     assert isinstance(parser._actions[1], argparse._SubParsersAction)
     name, subparser = list(parser._actions[1].choices.items())[0]
     assert name == "mod"
     assert isinstance(subparser, argparse.ArgumentParser)
-    assert len(subparser._actions) == 1  # Only help action
+    assert len(subparser._actions) == 2  # Help and debug actions
     assert "No add_parser_args function found for command" in caplog.text
