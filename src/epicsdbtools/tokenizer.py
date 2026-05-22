@@ -63,7 +63,7 @@ class Tokenizer:
             self.lineno += 1
 
             line = line.strip()
-            if line.startswith("#"):
+            if line.startswith("#") or line.startswith("%"):
                 continue
 
             pos, max = 0, len(line)

@@ -117,9 +117,14 @@ class Record(Generic[RecordTypeT]):
 
 
 class Database(OrderedDict[str, Record]):
-    def __init__(self):
+    def __init__(self, path: Path | None = None):
         super().__init__()
         self._included_templates: dict[str, Database | None] = {}
+        self._path = path
+
+    @property
+    def description(self) -> str:
+        return f"{self._path.name if self._path else 'In-memory database'} with {len(self)} records"
 
     def __repr__(self) -> str:
         msg = []

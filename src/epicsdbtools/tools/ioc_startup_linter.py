@@ -4,13 +4,18 @@ import argparse
 from pathlib import Path
 
 from ..parsers import load_iocsh_file
-from ..validation import validate_ioc_or_raise
+from ..validation import validate_ioc_or_raise, validate_ioc
 
 
 def add_parser_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "input_path",
         help="Path to the IOC startup script to lint.",
+    )
+    parser.add_argument(
+        "--print-final-state",
+        action="store_true",
+        help="Print the final parsed state of the IOC after validation.",
     )
 
 
@@ -29,5 +34,8 @@ def main(args: argparse.Namespace | None = None):
         )
 
     iocsh_state = load_iocsh_file(args.input_path)
-    validate_ioc_or_raise(iocsh_state)
-    print(iocsh_state)
+
+    if args.print_final_state:
+        print(iocsh_state)
+
+    print(validate_ioc(iocsh_state))

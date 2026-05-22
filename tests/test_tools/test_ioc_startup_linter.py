@@ -26,14 +26,16 @@ def test_linter_valid_startup(make_args, capsys):
     args = make_args(DATA_DIR / "st.cmd")
     main(args)
     captured = capsys.readouterr()
-    assert "IocshState" in captured.out
+    assert "Validation Result" in captured.out
 
 
-def test_linter_undefined_macro_raises(make_args):
-    """A startup script using an undefined macro should raise DatabaseException."""
+def test_linter_undefined_macro_reports_error(make_args, capsys):
+    """A startup script using an undefined macro should report a validation error."""
     args = make_args(DATA_DIR / "st_strict.cmd")
-    with pytest.raises(DatabaseException, match="UNDEFINED_MACRO"):
-        main(args)
+    main(args)
+    captured = capsys.readouterr()
+    assert "FAILED" in captured.out
+    assert "UNDEFINED_MACRO" in captured.out
 
 
 def test_linter_file_not_found(make_args):

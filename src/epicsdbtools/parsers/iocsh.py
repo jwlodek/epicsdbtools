@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
+import platform
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..macro import macro_expand, macro_split
+
+logger = logging.getLogger(__name__)
 from .database import (
     Database,
     DatabaseException,
@@ -53,16 +58,30 @@ class IocshState:
     dbd: DatabaseDefinition | None = None
     other_commands: list[IocshCommand] = field(default_factory=list)
     cwd: Path | None = None
+    registered_commands: set[str] = field(default_factory=set)
+    dbd_path: Path | None = None
 
     def update(self, other: IocshState) -> None:
         self.macros.update(other.macros)
         self.databases.extend(other.databases)
         if other.dbd is not None:
             self.dbd = other.dbd
+        if other.dbd_path is not None:
+            self.dbd_path = other.dbd_path
         self.other_commands.extend(other.other_commands)
+        self.registered_commands.update(other.registered_commands)
         if other.cwd is not None:
             self.cwd = other.cwd
 
+    def __str__(self) -> str:
+        return (
+            "IOC Shell State:\n"
+            f"  Database Definition: {self.dbd}\n"
+            f"  Current Working Directory: {self.cwd}\n"
+            f"  Macros:\n{''.join(f'    {k} = {v}\n' for k, v in self.macros.items())}"
+            f"  Databases:\n{''.join(f'    {db.description}\n' for db in self.databases)}"
+            f"  Other Commands:\n{''.join(f'    {cmd.name}({', '.join(cmd.args)})\n' for cmd in self.other_commands)}"
+        )
 
 def _expand_macros(text: str, macros: dict[str, str]) -> str:
     """Expand macros in a string.
@@ -226,6 +245,126 @@ def _resolve_file_path(
     return path
 
 
+def _get_arch() -> str:
+    """Get the EPICS target architecture string for the current platform."""
+    machine = platform.machine()
+    system = platform.system().lower()
+    arch_map = {
+        ("linux", "x86_64"): "linux-x86_64",
+        ("linux", "aarch64"): "linux-aarch64",
+        ("linux", "armv7l"): "linux-arm",
+        ("darwin", "x86_64"): "darwin-x86",
+        ("darwin", "arm64"): "darwin-aarch64",
+    }
+    return arch_map.get((system, machine), f"{system}-{machine}")
+
+
+def _discover_commands_from_binary(binary_path: Path) -> set[str]:
+    """Extract registered iocsh command names from an IOC binary and its libraries.
+
+    Finds command names by looking for strings ending in 'FuncDef' or 'Def'
+    that also have a corresponding bare command name string in the same file.
+
+    Parameters
+    ----------
+    binary_path : Path
+        Path to the IOC binary executable.
+
+    Returns
+    -------
+    set[str]
+        Set of discovered iocsh command names.
+    """
+    commands: set[str] = set()
+
+    # Get the binary and all its linked shared libraries
+    files_to_scan = [binary_path]
+    try:
+        result = subprocess.run(
+            ["ldd", str(binary_path)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                # Parse ldd output: libname.so => /path/to/lib.so (0x...)
+                parts = line.split("=>")
+                if len(parts) == 2:
+                    lib_path = parts[1].strip().split("(")[0].strip()
+                    if lib_path and Path(lib_path).exists():
+                        files_to_scan.append(Path(lib_path))
+    except (subprocess.TimeoutExpired, OSError) as e:
+        logger.debug(f"Failed to run ldd on {binary_path}: {e}")
+
+    for file_path in files_to_scan:
+        try:
+            result = subprocess.run(
+                ["strings", str(file_path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                continue
+        except (subprocess.TimeoutExpired, OSError):
+            continue
+
+        all_strings = set(result.stdout.splitlines())
+
+        for s in all_strings:
+            if s.endswith("FuncDef"):
+                cmd_name = s[: -len("FuncDef")]
+                if cmd_name and cmd_name in all_strings:
+                    commands.add(cmd_name)
+            elif s.endswith("Def") and not s.endswith("FuncDef"):
+                cmd_name = s[: -len("Def")]
+                if cmd_name and cmd_name in all_strings:
+                    commands.add(cmd_name)
+
+    return commands
+
+
+def _find_ioc_binary(app_name: str, dbd_path: Path) -> Path | None:
+    """Locate the IOC binary based on the app name and dbd file path.
+
+    Looks in <dbd_dir>/../bin/<arch>/<app_name> for the binary.
+
+    Parameters
+    ----------
+    app_name : str
+        The application name (prefix of *_registerRecordDeviceDriver).
+    dbd_path : Path
+        Path to the loaded .dbd file.
+
+    Returns
+    -------
+    Path | None
+        Path to the binary if found, None otherwise.
+    """
+    # dbd is typically in <top>/dbd/, binary in <top>/bin/<arch>/
+    top_dir = dbd_path.parent.parent
+    bin_dir = top_dir / "bin"
+
+    if not bin_dir.is_dir():
+        return None
+
+    # Try the current platform architecture first
+    arch = _get_arch()
+    candidate = bin_dir / arch / app_name
+    if candidate.exists():
+        return candidate
+
+    # Fall back to searching any arch directory
+    for arch_dir in bin_dir.iterdir():
+        if arch_dir.is_dir():
+            candidate = arch_dir / app_name
+            if candidate.exists():
+                return candidate
+
+    return None
+
+
 def consume_iocsh_command(
     line: str, current_state: IocshState
 ) -> None:
@@ -279,6 +418,7 @@ def consume_iocsh_command(
                     f"Database definition file not found: {dbd_path}"
                 )
             current_state.dbd = load_dbd_file(dbd_path)
+            current_state.dbd_path = dbd_path.resolve()
 
     elif command == "dbLoadRecords":
         # dbLoadRecords("file.db", "macros")
@@ -321,6 +461,26 @@ def consume_iocsh_command(
                 current_state.databases.append(db)
 
     else:
+        if command.endswith("_registerRecordDeviceDriver"):
+            app_name = command[: -len("_registerRecordDeviceDriver")]
+            if current_state.dbd_path is not None:
+                binary_path = _find_ioc_binary(app_name, current_state.dbd_path)
+                if binary_path is not None:
+                    logger.info(
+                        f"Scanning IOC binary '{binary_path}' for registered commands"
+                    )
+                    current_state.registered_commands.update(
+                        _discover_commands_from_binary(binary_path)
+                    )
+                else:
+                    logger.warning(
+                        f"Could not find IOC binary for '{app_name}'; "
+                        f"commands from registrars will not be validated"
+                    )
+            else:
+                logger.warning(
+                    f"No dbd path available to locate IOC binary for '{app_name}'"
+                )
         current_state.other_commands.append(IocshCommand(name=command, args=args))
 
 

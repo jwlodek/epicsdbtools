@@ -21,6 +21,14 @@ from .parsers.database_definition import DatabaseDefinition
 
 from .parsers.iocsh import IocshState
 
+# Define color codes as constants for readability
+RED = "\033[31m"
+YELLOW = "\033[33m"
+GREEN = "\033[32m"
+BLUE = "\033[34m"
+RESET = "\033[0m"  # Resets the color to default
+
+
 
 class ValidationSeverity(StrEnum):
     ERROR = "error"
@@ -89,6 +97,18 @@ class ValidationResult:
                 field_name=field_name,
             )
         )
+
+    def __str__(self) -> str:
+        out = "Validation Result: "
+        if self.is_valid:
+            out += f"{GREEN}PASSED{RESET}"
+        else:
+            out += f"{RED}FAILED{RESET}"
+        out += f"\nErrors: {len(self.errors)}\nWarnings: {len(self.warnings)}"
+        for message in self.messages:
+            color = RED if message.severity == ValidationSeverity.ERROR else YELLOW
+            out += f"\n{color}{message}{RESET}"
+        return out
 
 
 def validate_database(db: Database, dbd: DatabaseDefinition) -> ValidationResult:
@@ -265,6 +285,7 @@ BUILTIN_IOCSH_COMMANDS = frozenset(
         "scanppl",
         "scanOnceSetQueueSize",
         "errlogInit",
+        "errLogInit",
         "eltc",
         "errlog",
         "ClockTime_Report",
@@ -305,9 +326,13 @@ def validate_iocsh_commands(
 
     # Collect all registered command names from dbd
     registered_commands = set(dbd.functions) | set(dbd.registrars)
+    # Include commands discovered from the IOC binary
+    registered_commands |= state.registered_commands
 
     for cmd in state.other_commands:
         if cmd.name in BUILTIN_IOCSH_COMMANDS:
+            continue
+        if cmd.name.endswith("_registerRecordDeviceDriver"):
             continue
         if cmd.name not in registered_commands:
             result.add_warning(

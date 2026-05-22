@@ -190,11 +190,6 @@ def _parse_record_type(src: Iterator[str]) -> RecordTypeDefinition:
         if token == "field":
             field_def = _parse_field_definition(src)
             record_type.fields[field_def.name] = field_def
-        elif token == "%":
-            # C code include line (e.g., %#include "dbCommon.h")
-            # The tokenizer will yield the rest as tokens; skip to next line
-            # These are typically handled as bare tokens
-            pass
         elif token == "include":
             next(src)
         else:
@@ -285,6 +280,20 @@ def _parse_single_arg(src: Iterator[str]) -> str:
     return value
 
 
+def _consume_parenthesized(src: Iterator[str]) -> None:
+    """Consume tokens from '(' to matching ')', discarding everything."""
+    token = next(src)
+    if token != "(":
+        raise DbdException("Expected '('")
+    depth = 1
+    while depth > 0:
+        token = next(src)
+        if token == "(":
+            depth += 1
+        elif token == ")":
+            depth -= 1
+
+
 def _parse_variable(src: Iterator[str]) -> tuple[str, str | None]:
     """Parse a variable definition: variable(name, type) or variable(name)."""
     token = next(src)
@@ -337,6 +346,9 @@ def parse_dbd(src: Iterator[str]) -> DatabaseDefinition:
         elif token == "breaktable":
             bt = _parse_breaktable(src)
             dbd.break_tables[bt.name] = bt
+        elif token == "link":
+            # link(name, interface) - skip the parenthesized content
+            _consume_parenthesized(src)
         elif token == "include":
             filename = next(src)
             dbd.includes.append(filename)
