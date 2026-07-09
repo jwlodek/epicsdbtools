@@ -23,6 +23,16 @@ from .iocsh import (
     consume_iocsh_command,
     load_iocsh_file,
 )
+from .proto import (
+    FormatConverter,
+    Protocol,
+    ProtocolCommand,
+    ProtocolFile,
+    ProtocolHandler,
+    ProtoParseError,
+    load_protocol_file,
+    parse_protocol,
+)
 from .substitution import Substitution, load_substitution_file
 
 __all__ = [
@@ -42,9 +52,17 @@ __all__ = [
     "RecordTypeT",
     "Substitution",
     "consume_iocsh_command",
+    "FormatConverter",
     "load_database_file",
     "load_dbd_file",
     "load_iocsh_file",
+    "load_protocol_file",
     "load_substitution_file",
     "parse_dbd",
+    "parse_protocol",
+    "Protocol",
+    "ProtocolCommand",
+    "ProtocolFile",
+    "ProtocolHandler",
+    "ProtoParseError",
 ]

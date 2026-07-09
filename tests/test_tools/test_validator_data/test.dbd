@@ -86,11 +86,55 @@ recordtype(bi) {
     }
 }
 
+recordtype(stringin) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(VAL, DBF_STRING) {
+        prompt("Current Value")
+        size(40)
+    }
+    field(INP, DBF_INLINK) {
+        prompt("Input Specification")
+    }
+    field(DTYP, DBF_STRING) {
+        prompt("Device Type")
+        size(40)
+    }
+}
+
+recordtype(longin) {
+    field(NAME, DBF_STRING) {
+        prompt("Record Name")
+        special(SPC_NOMOD)
+        size(61)
+    }
+    field(VAL, DBF_LONG) {
+        prompt("Current Value")
+        asl(ASL0)
+        pp(TRUE)
+    }
+    field(INP, DBF_INLINK) {
+        prompt("Input Specification")
+    }
+    field(DTYP, DBF_STRING) {
+        prompt("Device Type")
+        size(40)
+    }
+}
+
 device(ai, CONSTANT, devAiSoft, "Soft Channel")
 device(ai, INST_IO, asynAiFloat64, "asynFloat64")
+device(ai, INST_IO, devAiStream, "stream")
 device(ao, CONSTANT, devAoSoft, "Soft Channel")
 device(ao, INST_IO, asynAoFloat64, "asynFloat64")
+device(ao, INST_IO, devAoStream, "stream")
 device(bi, CONSTANT, devBiSoft, "Soft Channel")
+device(bi, INST_IO, devBiStream, "stream")
+device(stringin, INST_IO, devSiStream, "stream")
+device(longin, INST_IO, devLiStream, "stream")
 
 registrar(asSub)
 registrar(myDriverRegister)

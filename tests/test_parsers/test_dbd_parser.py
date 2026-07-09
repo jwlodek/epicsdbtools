@@ -4,14 +4,8 @@ from pathlib import Path
 import pytest
 
 from epicsdbtools.parsers.database_definition import (
-    BreakTable,
-    DatabaseDefinition,
     DbdException,
-    DeviceSupport,
-    FieldDefinition,
-    Menu,
     MenuChoice,
-    RecordTypeDefinition,
     _parse_breaktable,
     _parse_device,
     _parse_menu,

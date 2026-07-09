@@ -9,28 +9,28 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..macro import macro_expand, macro_split
-
-logger = logging.getLogger("epicsdbtools")
 from .database import (
     Database,
-    DatabaseException,
     LoadIncludesStrategy,
     load_database_file,
 )
 from .database_definition import DatabaseDefinition, load_dbd_file
+from .proto import ProtocolFile, load_protocol_file
 from .substitution import load_substitution_file
+
+logger = logging.getLogger("epicsdbtools")
 
 
 @dataclass
 class IocshCommand:
-    """Represents a generic iocsh command that is not specifically handled by the parser.
-    
+    """A generic iocsh command not specifically handled by the parser.
+
     Attributes
     ----------
     name : str
-        The name of the iocsh command (e.g., "epicsEnvSet", "dbLoadRecords").
+        The command name (e.g., "epicsEnvSet", "dbLoadRecords").
     args : list[str]
-        The list of arguments passed to the command, after macro expansion and stripping.
+        Arguments passed to the command, after macro expansion.
     """
 
     name: str
@@ -39,7 +39,7 @@ class IocshCommand:
 
 @dataclass
 class IocshState:
-    """Represents the accumulated state of an IOC shell startup script after processing commands.
+    """Accumulated state of an IOC shell startup script.
 
     Attributes
     ----------
@@ -62,6 +62,7 @@ class IocshState:
     cwd: Path | None = None
     registered_commands: dict[str, int] = field(default_factory=dict)
     dbd_path: Path | None = None
+    protocol_files: dict[str, ProtocolFile] = field(default_factory=dict)
 
     def update(self, other: IocshState) -> None:
         self.macros.update(other.macros)
@@ -72,16 +73,23 @@ class IocshState:
             self.dbd_path = other.dbd_path
         self.other_commands.extend(other.other_commands)
         self.registered_commands.update(other.registered_commands)
+        self.protocol_files.update(other.protocol_files)
 
     def __str__(self) -> str:
+        macro_lines = "".join(f"    {k} = {v}\n" for k, v in self.macros.items())
+        db_lines = "".join(f"    {db.description}\n" for db in self.databases)
+        cmd_lines = "".join(
+            f"    {cmd.name}({', '.join(cmd.args)})\n" for cmd in self.other_commands
+        )
         return (
             "IOC Shell State:\n"
             f"  Database Definition: {self.dbd}\n"
             f"  Current Working Directory: {self.cwd}\n"
-            f"  Macros:\n{''.join(f'    {k} = {v}\n' for k, v in self.macros.items())}"
-            f"  Databases:\n{''.join(f'    {db.description}\n' for db in self.databases)}"
-            f"  Other Commands:\n{''.join(f'    {cmd.name}({', '.join(cmd.args)})\n' for cmd in self.other_commands)}"
+            f"  Macros:\n{macro_lines}"
+            f"  Databases:\n{db_lines}"
+            f"  Other Commands:\n{cmd_lines}"
         )
+
 
 def _expand_macros(text: str, macros: dict[str, str]) -> str:
     """Expand macros in a string.
@@ -113,7 +121,7 @@ def _parse_command_line(line: str) -> list[str] | None:
     Handles both forms:
       - command("arg1", "arg2")
       - command arg1, arg2
-    
+
     Parameters
     ----------
     line : str
@@ -159,7 +167,7 @@ def _parse_command_line(line: str) -> list[str] | None:
 
 def _split_args(arg_str: str) -> list[str]:
     """Split argument string on commas, respecting quoted sections.
-    
+
     Parameters
     ----------
     arg_str : str
@@ -199,7 +207,9 @@ def _resolve_file_path(
     state: IocshState,
     search_path_macro: str | None = "EPICS_DB_INCLUDE_PATH",
 ) -> Path:
-    """Resolve a file path relative to the IOC state's cwd and an optional search path macro.
+    """Resolve a file path relative to the IOC state's cwd.
+
+    Uses an optional search path macro.
 
     Parameters
     ----------
@@ -247,6 +257,19 @@ def _resolve_file_path(
     if not path.is_absolute() and state.cwd is not None:
         return state.cwd / path
     return path
+
+
+def _get_db_search_path(state: IocshState) -> set[Path] | None:
+    """Build a search path set from the EPICS_DB_INCLUDE_PATH macro."""
+    include_path = state.macros.get("EPICS_DB_INCLUDE_PATH", "")
+    if not include_path:
+        return None
+    paths = set()
+    for search_dir in include_path.split(":"):
+        search_dir = search_dir.strip()
+        if search_dir:
+            paths.add(Path(search_dir))
+    return paths if paths else None
 
 
 def _get_arch() -> str:
@@ -514,7 +537,9 @@ def _find_ioc_binary(app_name: str, dbd_path: Path) -> Path | None:
     if not bin_dir.is_dir():
         return None
 
-    logger.debug(f"Looking for IOC binary '{app_name}' in {bin_dir} for dbd at {dbd_path}")
+    logger.debug(
+        f"Looking for IOC binary '{app_name}' in {bin_dir} for dbd at {dbd_path}"
+    )
 
     # Try the current platform architecture first
     candidate = None
@@ -536,9 +561,7 @@ def _find_ioc_binary(app_name: str, dbd_path: Path) -> Path | None:
     return candidate
 
 
-def consume_iocsh_command(
-    line: str, current_state: IocshState
-) -> None:
+def consume_iocsh_command(line: str, current_state: IocshState) -> None:
     """Process a single iocsh command line, mutating the current state.
 
     Handles:
@@ -574,7 +597,9 @@ def consume_iocsh_command(
             current_state.macros[key] = value
             logger.info(f"Set macro: {key} = {value}")
         else:
-            logger.error(f"Invalid epicsEnvSet command, expected at least 2 args: {line}")
+            logger.error(
+                f"Invalid epicsEnvSet command, expected at least 2 args: {line}"
+            )
 
     elif command in ("cd", "chdir"):
         if len(args) >= 1:
@@ -608,10 +633,16 @@ def consume_iocsh_command(
             if not db_path.exists():
                 raise FileNotFoundError(f"Database file not found: {db_path}")
             logger.info(f"Loading database file: {db_path} with macros: {db_macros}")
-            dbd_record_types = set(current_state.dbd.record_types.keys()) if current_state.dbd else None
+            dbd_record_types = (
+                set(current_state.dbd.record_types.keys())
+                if current_state.dbd
+                else None
+            )
+            search_path = _get_db_search_path(current_state)
             db = load_database_file(
                 db_path,
                 macros=combined_macros,
+                search_path=search_path,
                 load_includes_strategy=LoadIncludesStrategy.LOAD_INTO_SELF,
                 allow_unmatched_macros=True,
                 valid_record_types=dbd_record_types,
@@ -631,14 +662,20 @@ def consume_iocsh_command(
                 expanded_file = _expand_macros(str(sub.file), current_state.macros)
                 template_path = _resolve_file_path(Path(expanded_file), current_state)
                 if not template_path.exists():
-                    raise FileNotFoundError(
-                        f"Template file not found: {template_path}"
-                    )
-                logger.debug(f"Loading template file: {template_path} with macros: {sub.macros}")
-                dbd_record_types = set(current_state.dbd.record_types.keys()) if current_state.dbd else None
+                    raise FileNotFoundError(f"Template file not found: {template_path}")
+                logger.debug(
+                    f"Loading template file: {template_path} with macros: {sub.macros}"
+                )
+                dbd_record_types = (
+                    set(current_state.dbd.record_types.keys())
+                    if current_state.dbd
+                    else None
+                )
+                search_path = _get_db_search_path(current_state)
                 db = load_database_file(
                     template_path,
                     macros=combined_macros,
+                    search_path=search_path,
                     load_includes_strategy=LoadIncludesStrategy.IGNORE,
                     valid_record_types=dbd_record_types,
                 )
@@ -654,12 +691,21 @@ def consume_iocsh_command(
                     binary_path = _find_ioc_binary(app_name, current_state.dbd_path)
                     if binary_path is not None:
                         logger.info(
-                            f"Scanning IOC binary '{binary_path}' for registered commands"
+                            "Scanning IOC binary '%s' for registered commands",
+                            binary_path,
                         )
-                        discovered_iocsh_commands = _discover_commands_from_binary(binary_path)
+                        discovered_iocsh_commands = _discover_commands_from_binary(
+                            binary_path
+                        )
                         for cmd, nargs in discovered_iocsh_commands.items():
-                            logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
-                        current_state.registered_commands.update(discovered_iocsh_commands)
+                            logger.info(
+                                "Discovered iocsh command from binary: %s(%s args)",
+                                cmd,
+                                nargs,
+                            )
+                        current_state.registered_commands.update(
+                            discovered_iocsh_commands
+                        )
                     else:
                         logger.warning(
                             f"Could not find IOC binary for '{app_name}'; "
@@ -682,6 +728,7 @@ def load_iocsh_file(
     macros: dict[str, str] | None = None,
     resolve_sources: bool = True,
     binary_path: Path | None = None,
+    _parent_state: IocshState | None = None,
 ) -> IocshState:
     """Parse an IOC shell startup file and return the resulting state.
 
@@ -705,6 +752,12 @@ def load_iocsh_file(
     """
     logger.info(f"Loading IOC shell file: {filepath}")
     state = IocshState(macros=dict(macros) if macros else {})
+    if _parent_state is not None:
+        if _parent_state.dbd is not None:
+            state.dbd = _parent_state.dbd
+        if _parent_state.dbd_path is not None:
+            state.dbd_path = _parent_state.dbd_path
+        state.registered_commands.update(_parent_state.registered_commands)
     filepath = Path(filepath).resolve()
 
     if not filepath.exists():
@@ -722,7 +775,9 @@ def load_iocsh_file(
             logger.info(f"Scanning user-specified IOC binary: {binary_path}")
             discovered = _discover_commands_from_binary(binary_path)
             for cmd, nargs in discovered.items():
-                logger.info(f"Discovered iocsh command from binary: {cmd}({nargs} args)")
+                logger.info(
+                    f"Discovered iocsh command from binary: {cmd}({nargs} args)"
+                )
             state.registered_commands.update(discovered)
         else:
             logger.warning(f"Specified binary path does not exist: {binary_path}")
@@ -746,13 +801,13 @@ def load_iocsh_file(
                         discovered = _discover_commands_from_binary(shebang_binary)
                         for cmd, nargs in discovered.items():
                             logger.info(
-                                f"Discovered iocsh command from binary: {cmd}({nargs} args)"
+                                "Discovered iocsh command from binary: %s(%s args)",
+                                cmd,
+                                nargs,
                             )
                         state.registered_commands.update(discovered)
                     else:
-                        logger.debug(
-                            f"Shebang binary not found: {shebang_binary}"
-                        )
+                        logger.debug(f"Shebang binary not found: {shebang_binary}")
                     continue
 
             # Skip empty lines and comments
@@ -791,6 +846,7 @@ def load_iocsh_file(
                         sourced_path,
                         macros=state.macros,
                         resolve_sources=resolve_sources,
+                        _parent_state=state,
                     )
                     state.update(child_state)
                 continue
@@ -817,6 +873,7 @@ def load_iocsh_file(
                             script_path,
                             macros=sub_macros,
                             resolve_sources=resolve_sources,
+                            _parent_state=state,
                         )
                         state.update(child_state)
                     else:
@@ -826,4 +883,69 @@ def load_iocsh_file(
             else:
                 consume_iocsh_command(expanded_line, state)
 
+    # Load protocol files referenced by StreamDevice records
+    _load_stream_protocol_files(state)
+
     return state
+
+
+def _load_stream_protocol_files(state: IocshState) -> None:
+    """Scan databases for StreamDevice records and load referenced protocol files.
+
+    Searches for protocol files in the directories listed in the
+    STREAM_PROTOCOL_PATH macro/environment variable. Relative paths are
+    resolved against the IOC's current working directory.
+    """
+    stream_protocol_path = state.macros.get("STREAM_PROTOCOL_PATH", "")
+    if not stream_protocol_path:
+        return
+
+    search_dirs: list[Path] = []
+    for dir_str in stream_protocol_path.split(":"):
+        dir_str = dir_str.strip()
+        if dir_str:
+            p = Path(dir_str)
+            if not p.is_absolute() and state.cwd is not None:
+                p = state.cwd / p
+            if p.is_dir():
+                search_dirs.append(p)
+
+    if not search_dirs:
+        return
+
+    # Collect all referenced proto filenames from stream records
+    proto_filenames: set[str] = set()
+    stream_link_re = re.compile(r"@(\S+\.proto)\s+")
+    for db in state.databases:
+        for record in db.values():
+            dtyp = record.fields.get("DTYP", "")
+            if not isinstance(dtyp, str) or dtyp.lower() != "stream":
+                continue
+            for field_name in ("INP", "OUT"):
+                link_value = record.fields.get(field_name)
+                if not isinstance(link_value, str):
+                    continue
+                m = stream_link_re.search(link_value)
+                if m:
+                    proto_filenames.add(m.group(1))
+
+    # Load each referenced protocol file
+    for proto_filename in proto_filenames:
+        if proto_filename in state.protocol_files:
+            continue
+        for search_dir in search_dirs:
+            proto_path = search_dir / proto_filename
+            if proto_path.is_file():
+                try:
+                    state.protocol_files[proto_filename] = load_protocol_file(
+                        proto_path
+                    )
+                    logger.info(f"Loaded protocol file: {proto_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to parse protocol file '{proto_path}': {e}")
+                break
+        else:
+            logger.warning(
+                f"Protocol file '{proto_filename}' not found in "
+                f"STREAM_PROTOCOL_PATH: {stream_protocol_path}"
+            )

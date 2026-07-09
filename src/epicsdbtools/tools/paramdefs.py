@@ -5,9 +5,9 @@ Generate asyn parameter definitions from EPICS DB templates
 """
 
 import argparse
+import os
 from dataclasses import dataclass
 from enum import Enum
-import os
 from pathlib import Path
 
 from .. import Database, LoadIncludesStrategy, load_database_file
@@ -71,7 +71,11 @@ def get_params_from_db(
 
 
 def generate_header_file_for_db(
-    params: list[ParamDef], output_path: Path, driver_name: str, base_name: str, use_hpp_extension: bool = False
+    params: list[ParamDef],
+    output_path: Path,
+    driver_name: str,
+    base_name: str,
+    use_hpp_extension: bool = False,
 ):
     extension = "hpp" if use_hpp_extension else "h"
     header_file = output_path / f"{driver_name}ParamDefs.{extension}"
@@ -147,7 +151,11 @@ def add_parser_args(parser: argparse.ArgumentParser):
         action="store_true",
         help="Use the prefix as the base name for generated files.",
     )
-    parser.add_argument("--use-hpp-extension", action="store_true", help="Use .hpp extension for header files.")
+    parser.add_argument(
+        "--use-hpp-extension",
+        action="store_true",
+        help="Use .hpp extension for header files.",
+    )
 
 
 def main(args: argparse.Namespace | None = None):
@@ -177,15 +185,22 @@ def main(args: argparse.Namespace | None = None):
             logger.info(
                 f"Param: {param.name}, Type: {param.type}, Record: {param.record_str}"
             )
-        generate_header_file_for_db(params, out_path, driver_name, base_name, use_hpp_extension=args.use_hpp_extension)
-
+        generate_header_file_for_db(
+            params,
+            out_path,
+            driver_name,
+            base_name,
+            use_hpp_extension=args.use_hpp_extension,
+        )
 
         for extension in ["h", "hpp"]:
             driver_header_file = out_path / f"{driver_name}.{extension}"
             if driver_header_file.is_file():
                 break
         else:
-            raise FileNotFoundError(f"Could not find header file for driver: {driver_name}")
+            raise FileNotFoundError(
+                f"Could not find header file for driver: {driver_name}"
+            )
 
         generate_cpp_file_for_db(params, out_path, driver_header_file.stem)
 

@@ -116,4 +116,3 @@ def test_create_cli_module_subparsers_no_parser_args(caplog):
     assert isinstance(subparser, argparse.ArgumentParser)
     assert len(subparser._actions) == 2  # Help and debug actions
     assert "No add_parser_args function found for command" in caplog.text
-

@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from ..parsers import load_iocsh_file
-from ..validation import validate_ioc_or_raise, validate_ioc
+from ..validation import validate_ioc
 
 
 def add_parser_args(parser: argparse.ArgumentParser):

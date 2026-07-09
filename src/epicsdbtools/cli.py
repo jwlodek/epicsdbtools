@@ -1,12 +1,12 @@
 import argparse
 import importlib
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
+from ._version import __version__
 from .log import logger
 from .tools import __all__ as cli_tools
-from ._version import __version__
 
 
 @runtime_checkable
@@ -43,7 +43,9 @@ def create_cli_module_subparsers(
         dest="command", help="Available commands", required=True
     )
     for command in cli_modules.keys():
-        command = command.replace("_", "-")  # Allow commands to be defined with underscores but used with dashes
+        command = command.replace(
+            "_", "-"
+        )  # Allow commands to be defined with underscores but used with dashes
 
         logger.debug(f"Adding CLI subcommand: {command}")
 
@@ -56,7 +58,9 @@ def create_cli_module_subparsers(
                 command, help=f"{command} command"
             )
 
-        cli_module_parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging")
+        cli_module_parser.add_argument(
+            "-d", "--debug", action="store_true", help="Enable debug logging"
+        )
 
         if hasattr(cli_modules[command], "add_parser_args"):
             add_parser_args_fn = cli_modules[command].add_parser_args
@@ -71,7 +75,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="A CLI utility for EPICS database operations."
     )
-    parser.add_argument("--version", action="version", version=f"epicsdbtools v{__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"epicsdbtools v{__version__}"
+    )
 
     cli_modules = get_cli_modules()
     create_cli_module_subparsers(parser, cli_modules)

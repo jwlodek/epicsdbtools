@@ -1,0 +1,26 @@
+Terminator = CR LF;
+
+getTemperature {
+    out "TEMP?";
+    in "%f";
+}
+
+setTemperature {
+    out "TEMP %f";
+    @init { getTemperature; }
+}
+
+getStatus {
+    out "STAT?";
+    in "%{OFF|ON}";
+}
+
+getChannel {
+    out "\$1:VAL?";
+    in "%f";
+}
+
+getIdent {
+    out "*IDN?";
+    in "%s";
+}

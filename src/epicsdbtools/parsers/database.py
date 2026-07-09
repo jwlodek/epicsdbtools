@@ -134,7 +134,8 @@ class Database(OrderedDict[str, Record]):
 
     @property
     def description(self) -> str:
-        return f"{self._path.name if self._path else 'In-memory database'} with {len(self)} records"
+        name = self._path.name if self._path else "In-memory database"
+        return f"{name} with {len(self)} records"
 
     def __repr__(self) -> str:
         msg = []
@@ -213,7 +214,8 @@ def parse_record(
 ) -> tuple[Record, int]:
     """
     :param iter src: token generator
-    :param valid_record_types: optional set of additional valid record type names (e.g. from dbd)
+    :param valid_record_types: optional set of additional valid record
+        type names (e.g. from dbd)
     :returns: tuple of (record, invalid_field_count)
     """
 
@@ -225,13 +227,13 @@ def parse_record(
 
     try:
         record_type = RecordType[rtype.upper()]
-    except KeyError:
+    except KeyError as err:
         if valid_record_types and rtype in valid_record_types:
             record_type = rtype
         else:
             raise DatabaseException(
                 f"Invalid record type '{rtype}' for '{name}'"
-            )
+            ) from err
 
     record = Record(name=name, rtype=record_type)
     invalid_fields = 0

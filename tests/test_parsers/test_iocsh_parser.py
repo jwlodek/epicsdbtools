@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from epicsdbtools.parsers.database import DatabaseException
 from epicsdbtools.parsers.iocsh import (
     IocshCommand,
     IocshState,

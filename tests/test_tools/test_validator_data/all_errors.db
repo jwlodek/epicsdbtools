@@ -1,0 +1,85 @@
+# Database with errors in all validation categories
+
+# 1. Invalid record type (no such type in dbd)
+record(waveform, "Test:BadType") {
+    field(DTYP, "Soft Channel")
+}
+
+# 2. Invalid field name
+record(ai, "Test:BadField") {
+    field(DTYP, "Soft Channel")
+    field(NONEXISTENT_FIELD, "bad")
+}
+
+# 3. Invalid DTYP
+record(ai, "Test:BadDTYP") {
+    field(DTYP, "noSuchDriver")
+    field(INP, "0")
+}
+
+# 4. Unexpanded macro in record name
+record(ai, "$(UNDEFINED_MACRO):Temperature") {
+    field(DTYP, "Soft Channel")
+}
+
+# 5. Stream protocol - file not found
+record(ai, "Test:MissingProto") {
+    field(DTYP, "stream")
+    field(INP, "@nonexistent.proto getTemperature PORT1")
+}
+
+# 6. Stream protocol - function not found in file
+record(ai, "Test:BadProtoFunc") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto noSuchProtocol PORT1")
+}
+
+# 7. Stream protocol - wrong number of arguments
+record(ai, "Test:WrongArgCount") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getChannel(A, B) PORT1")
+}
+
+# 8. Stream protocol - incompatible converter for stringin with %d
+record(stringin, "Test:StrWithInt") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getTemperature PORT1")
+}
+
+# 9. Stream protocol - incompatible converter for bi with %f
+record(bi, "Test:BiWithFloat") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getTemperature PORT1")
+}
+
+# 10. Stream protocol - incompatible converter for longin with %f
+record(longin, "Test:LongWithFloat") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getTemperature PORT1")
+}
+
+# --- Records that SHOULD pass ---
+
+# Valid stream record with correct converter
+record(ai, "Test:GoodStream") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getTemperature PORT1")
+}
+
+# Valid stream with enum converter on bi
+record(bi, "Test:GoodBiEnum") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getStatus PORT1")
+}
+
+# Valid stream with string converter on stringin
+record(stringin, "Test:GoodStringIn") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getIdent PORT1")
+}
+
+# Valid parameterized protocol
+record(ai, "Test:GoodParam") {
+    field(DTYP, "stream")
+    field(INP, "@device.proto getChannel(1) PORT1")
+}

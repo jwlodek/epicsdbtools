@@ -126,9 +126,7 @@ def _parse_menu(src: Iterator[str]) -> Menu:
             # Some dbd files include other files inside menu blocks; skip the filename
             next(src)
         else:
-            raise DbdException(
-                f"Unexpected token '{token}' in menu '{name}'"
-            )
+            raise DbdException(f"Unexpected token '{token}' in menu '{name}'")
         token = next(src)
 
     logger.debug(f"Parsed menu '{name}' with {len(menu.choices)} choices")
@@ -193,14 +191,10 @@ def _parse_record_type(src: Iterator[str]) -> RecordTypeDefinition:
         elif token == "include":
             next(src)
         else:
-            raise DbdException(
-                f"Unexpected token '{token}' in recordtype '{name}'"
-            )
+            raise DbdException(f"Unexpected token '{token}' in recordtype '{name}'")
         token = next(src)
 
-    logger.debug(
-        f"Parsed recordtype '{name}' with {len(record_type.fields)} fields"
-    )
+    logger.debug(f"Parsed recordtype '{name}' with {len(record_type.fields)} fields")
     return record_type
 
 
@@ -262,9 +256,7 @@ def _parse_breaktable(src: Iterator[str]) -> BreakTable:
         break_table.entries.append((raw_value, eng_value))
         token = next(src)
 
-    logger.debug(
-        f"Parsed breaktable '{name}' with {len(break_table.entries)} entries"
-    )
+    logger.debug(f"Parsed breaktable '{name}' with {len(break_table.entries)} entries")
     return break_table
 
 
@@ -387,9 +379,7 @@ def load_dbd_file(
                     f"Database definition file '{filename}' not found"
                 )
         else:
-            raise FileNotFoundError(
-                f"Database definition file '{filename}' not found"
-            )
+            raise FileNotFoundError(f"Database definition file '{filename}' not found")
 
     with open(filename) as fp:
         content = fp.read()

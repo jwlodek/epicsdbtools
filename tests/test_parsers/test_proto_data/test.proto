@@ -1,0 +1,56 @@
+# Sample StreamDevice protocol file for testing
+Terminator = CR LF;
+ReplyTimeout = 1000;
+ReadTimeout = 200;
+ExtraInput = Ignore;
+
+# Simple query protocol
+getVal {
+    out "VAL?";
+    in "%f";
+}
+
+# Simple set protocol with @init handler
+setVal {
+    out "VAL %f";
+    @init { getVal; }
+}
+
+# Parameterized protocol (positional $1)
+getParam {
+    out "\$1:READ?";
+    in "%f";
+    ExtraInput = Ignore;
+}
+
+# Protocol with multiple handlers
+readStatus {
+    out "STAT?";
+    in "%d";
+    @mismatch { in "%*s"; }
+    @readtimeout { disconnect; }
+    @init { getVal; }
+}
+
+# Protocol using positional parameters (no declaration)
+setChannel {
+    out "CH\$1:SET %02d";
+    in "%d";
+}
+
+# Protocol using multiple positional parameters
+getRange {
+    out "RANGE \$1 \$2";
+    in "%f %f";
+}
+
+# Protocol with enum converter
+setSwitch {
+    out "SW %{OFF|ON}";
+    @init { getSwitch; }
+}
+
+getSwitch {
+    out "SW?";
+    in "SW %{OFF|ON}";
+}

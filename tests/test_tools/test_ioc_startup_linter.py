@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 
-from epicsdbtools.parsers.database import DatabaseException
 from epicsdbtools.tools.ioc_startup_linter import add_parser_args, main
 
 DATA_DIR = Path(__file__).parent.parent / "test_parsers" / "test_iocsh_data"
